@@ -1,0 +1,322 @@
+---
+title: "PL Injuries Data Prep"
+author: "Tamas Koncz"
+date: "July 1, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(lubridate) 
+
+rm(list = ls())
+injuries_raw <- fread("./../Data/injury_soccer/injury_data_pg.csv") 
+```
+
+
+```{r}
+injuries <- injuries_raw %>%
+                  select(Date,                 `Game week`,      `Kick-off`,        mid,
+                         pid,                  `First name`,     `Last name`,       minutes,
+                         injured,               injury_length,    injury_type,
+                         `Country of birth`,    Nationality,     `Date of birth`,
+                         Position,              Foot,             Height,           Weight,
+                         starts_with("all_"),   starts_with("pl_"))
+
+injuries %>% glimpse()
+```
+
+
+Formatting clean-up for date variables
+```{r}
+injuries <- injuries %>%
+              mutate(Date = as.Date(Date, "%Y-%m-%d"),
+                     `Date of birth` = as.Date(`Date of birth`, "%Y-%m-%d")) %>%
+              mutate(age_in_years = time_length(difftime(Date, `Date of birth`), "years")) 
+```
+
+As shown, the injury data is only complete for 2010-2017. That should be still plenty for statistical analysis.
+```{r}
+f_sec_scale <- function(x) sprintf("%.2f", x)
+```
+
+```{r}
+f_breakdown_by_bins <- function(df, s) {
+  max_injury_rate_pct  <- df$injury_rate_pct %>% max()
+  max_game_count       <- df$game_count      %>% max()
+  
+  ggplot(data = df, aes_string(x = s)) +
+    geom_bar(aes(y = game_count, fill = "# of games"), stat= "identity") +
+    geom_point(aes(y = injury_rate_pct * (max_game_count / max_injury_rate_pct), color = "% of injured"), stat= "identity") +
+    geom_line( aes(y = injury_rate_pct * (max_game_count / max_injury_rate_pct), color = "% of injured"), stat= "identity", group = 1) +
+    scale_y_continuous(sec.axis = sec_axis(~./(max_game_count / max_injury_rate_pct), name = "% of injured", labels = f_sec_scale), 
+                     labels = scales::comma) + 
+  scale_fill_manual(name = "Legend", values = c("# of games" = "lightblue")) + 
+  scale_color_manual(name = element_blank(), values = c("% of injured" = "darkblue")) + 
+  labs(y = "# of games", x = s, title = "Hamstring injuries happening during the game") +
+  theme_minimal()
+  ##TODO: legend clean-up
+}
+```
+
+```{r}
+injuries %>%
+  mutate(year = year(Date)) %>%
+  group_by(year) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "year")
+```
+
+```{r}
+injuries <- injuries %>%
+              filter(year(Date) %in% c(2010:2017))
+```
+
+
+And for height & weight
+```{r}
+injuries <- injuries %>%
+              filter(!(is.null(Height) | Height == "")) %>%
+              mutate(`Height (cm)` = gsub(pattern = " cm", replacement = "", x = Height)) %>%
+              mutate(`Height (cm)` = as.numeric(`Height (cm)`)) %>%
+              select(everything(), -Height)
+
+injuries <- injuries %>%
+              filter(!(is.null(Weight) | Weight == "")) %>%
+              mutate(`Weight (kg)` = gsub(pattern = " kg", replacement = "", x = Weight)) %>%
+              mutate(`Weight (kg)` = as.numeric(`Weight (kg)`)) %>%
+              select(everything(), -Weight)
+```
+
+Add BMI column:
+```{r}
+injuries <- injuries %>%
+              mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
+```
+
+```{r}
+injuries %>%
+  filter(injury_type != '0') %>%
+  count(injury_type, sort = T) %>%
+  mutate(injury_type = ifelse(n<100, 'Other', injury_type)) %>%
+  mutate(injury_type = reorder(injury_type, n)) %>%
+  ggplot(aes(x = injury_type, y = n)) +
+    geom_bar(stat = "identity") +
+    coord_flip() +
+    theme_minimal()
+```
+
+Visualizing injury lengths distributions:
+```{r}
+injuries %>%
+  filter(injury_type != '0') %>%
+  group_by(injury_type) %>%
+  mutate(n = n()) %>%
+  ungroup() %>%
+  mutate(injury_type = ifelse(n < 100, 'Other', injury_type)) %>%
+  mutate(injury_type = reorder(injury_type, n)) %>%
+  mutate(injury_length_capped_180 = ifelse(injury_length > 180, 180, injury_length)) %>%
+  ggplot(aes(x = injury_type, y = injury_length_capped_180)) + 
+    geom_boxplot() +
+    coord_flip() +
+    theme_minimal()
+```
+
+
+
+For now, focus on 'Hamstring', then see if it can be extended to all strains.
+(Note: at the time of writing this - https://www.bbc.com/sport/football/44671242)
+```{r}
+hamstring <- injuries %>%
+               filter(injury_type == "Hamstring")
+```
+
+
+```{r}
+hamstring %>%
+  filter(injury_length > 0) %>% #should miss at least 1 day
+  mutate(injury_length_capped_180 = ifelse(injury_length >= 180, 180, injury_length)) %>% 
+  ggplot(aes(x = log(injury_length_capped_180))) +
+    geom_density(fill = "lightblue") +
+    theme_minimal()
+```
+
+```{r}
+hamstring_only <- injuries %>% 
+                    filter(injury_type == "0" | injury_type == "Hamstring")
+```
+
+
+#### Minutes played in a given game - less time, less chance to get injured?
+```{r}
+hamstring_only %>%
+  mutate(`Minutes played` = cut(minutes, 
+                                 breaks = c(0, 15, 30, 45, 60, 75,  Inf), 
+                                 include.lowest = T,
+                                 labels = c("-15", "15-30", "30-45", "45-60", "60-75", "75+"))) %>%
+  group_by(`Minutes played`) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "`Minutes played`")
+```
+
+#### Age, weight, height, bmi  
+
+Age: slight increase over the years for significantly large groups
+```{r}
+hamstring_only %>%
+  mutate(`Age (Years)` = cut(age_in_years, 
+                                 breaks = seq(0, 50, by = 2.5), 
+                                 include.lowest = T)) %>%
+  group_by(`Age (Years)`) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "`Age (Years)`")
+```
+
+Weight. TODO: Better categories needed
+```{r}
+hamstring_only %>%
+  mutate(`Weight (kg)` = cut(`Weight (kg)`, 
+                              breaks = seq(0, 125, by = 5), 
+                              include.lowest = T)) %>%
+  group_by(`Weight (kg)`) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "`Weight (kg)`")
+```
+
+Height:
+```{r}
+hamstring_only %>%
+  mutate(`Height (cm)` = cut(`Height (cm)`, 
+                              breaks = seq(0, 220, by = 5), 
+                              include.lowest = T)) %>%
+  group_by(`Height (cm)`) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "`Height (cm)`")
+```
+
+
+BMI - does not seem to have any trend.
+```{r}
+hamstring_only %>%
+  mutate(BMI = cut(bmi, 
+                              breaks = seq(0, 35, by = 1.25), 
+                              include.lowest = T)) %>%
+  group_by(BMI) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "BMI")
+```
+
+#### By Kick-off time  
+  
+Maybe a slight impact... 
+```{r}
+hamstring_only %>%
+  mutate(kick_off_hour = as.numeric(substr(`Kick-off`, 1, 2)) + as.numeric(as.numeric(substr(`Kick-off`, 4, 5)) > 30)) %>%
+  mutate(`Kick-off Hour` = cut(kick_off_hour, breaks = c(0, 15, 17, 19, 24), 
+                                 include.lowest = T, labels = c("-15", "15-17", "17-19", "19-"))) %>%
+  group_by(`Kick-off Hour`) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "`Kick-off Hour`")
+```
+
+#### by Year & Month  
+
+ 
+```{r}
+hamstring_only %>%
+  mutate(Year = year(Date)) %>%
+  group_by(Year) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "Year")
+```
+
+```{r}
+Month_mapping <- data.frame(Month_Num = c(1:12), Month = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+                            Month_in_Season = c(6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5))
+
+hamstring_only %>%
+  mutate(Month_Num = month(Date)) %>%
+  left_join(Month_mapping, by = "Month_Num") %>%
+  mutate(Month = reorder(Month, Month_in_Season)) %>%
+  group_by(Month) %>%
+  summarize(game_count = n(),
+  injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s = "Month")
+```
+  
+#### Comparison with categorical variables
+
+```{r}
+f_breakdown_by_variable <- function(df, s) {
+  df %>%
+  group_by(!!as.name(s)) %>%
+  summarize(game_count = n(),
+            injury_count = (sum(injury_type != 0)),
+            injury_rate_pct = injury_count / game_count * 100,
+            avg_minutes_played = mean(minutes)) %>%
+  ungroup() %>%
+  arrange(-injury_rate_pct)
+}
+```
+
+
+```{r}
+f_breakdown_by_variable(hamstring_only, "Position")
+```
+
+Note: Position is missing for a few records. Zero injuries. TODO: Investigate structure of missing data!
+Goalkeepers getting injured a lot less.
+
+```{r}
+f_breakdown_by_variable(hamstring_only, "Foot")
+```
+
+Note: injury count is significantly lower when Foot is missing
+
+TODO: create some groups based on country of birth / nationality ?
+```{r}
+f_breakdown_by_variable(hamstring_only, "Nationality")
+```
+
+#### Re-defining injury  
+  
+Question: how many games to count?
+Question: what to do with days_till-injury?
+
+```{r}
+hamstring_only %>% glimpse()
+```
+
