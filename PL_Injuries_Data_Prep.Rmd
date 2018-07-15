@@ -13,7 +13,10 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
-library(lubridate) 
+library(lubridate)
+
+library(caret)
+
 
 rm(list = ls())
 injuries_raw <- fread("./../Data/injury_soccer/injury_data_pg.csv") 
@@ -110,7 +113,7 @@ injuries %>%
   mutate(injury_type = ifelse(n<100, 'Other', injury_type)) %>%
   mutate(injury_type = reorder(injury_type, n)) %>%
   ggplot(aes(x = injury_type, y = n)) +
-    geom_bar(stat = "identity") +
+    geom_bar(stat = "identity", fill = "lightblue") +
     coord_flip() +
     theme_minimal()
 ```
@@ -177,7 +180,7 @@ Age: slight increase over the years for significantly large groups
 ```{r}
 hamstring_only %>%
   mutate(`Age (Years)` = cut(age_in_years, 
-                                 breaks = seq(0, 50, by = 2.5), 
+                                 breaks = c(-Inf, 20, 22.5, 25, 27.5, 30, 32.5, 35, Inf), 
                                  include.lowest = T)) %>%
   group_by(`Age (Years)`) %>%
   summarize(game_count = n(),
@@ -219,9 +222,7 @@ hamstring_only %>%
 BMI - does not seem to have any trend.
 ```{r}
 hamstring_only %>%
-  mutate(BMI = cut(bmi, 
-                              breaks = seq(0, 35, by = 1.25), 
-                              include.lowest = T)) %>%
+  mutate(BMI = cut(bmi, breaks = c(-Inf, 19, 21, 23, 25, 27, Inf), include.lowest = T)) %>%
   group_by(BMI) %>%
   summarize(game_count = n(),
   injury_count = (sum(injury_type != 0))) %>%
@@ -318,5 +319,102 @@ Question: what to do with days_till-injury?
 
 ```{r}
 hamstring_only %>% glimpse()
+```
+
+#### Fixing NAs & encode categicals
+
+NAs:
+```{r}
+hamstring_only <- hamstring_only %>%
+                    select(mid, pid, injured, Position, Foot, age_in_years, `Height (cm)`, `Weight (kg)`, bmi)
+
+hamstring_only <- hamstring_only %>% mutate(Position = ifelse(Position == "", "Missing", Position))
+hamstring_only <- hamstring_only %>% mutate(Foot     = ifelse(Foot     == "", "Missing", Foot))
+```
+
+Encode categoricals:
+```{r}
+hamstring_only <- hamstring_only %>%
+                    mutate(Position = paste("Position", Position, sep = "_")) %>% 
+                    mutate(Foot     = paste("Foot",     Foot,     sep = "_")) %>%
+                    mutate(i = 1) %>% tidyr::spread(key = Position, value = i, fill = 0) %>%
+                    mutate(i = 1) %>% tidyr::spread(key = Foot, value = i, fill = 0) %>%
+                    select(-Position_Goalkeeper, -Foot_Right) #these are the "base" values
+```
+
+
+### Prediction  
+For now, let's build two models: glm & rf. let's see what signals can we pick up  
+
+Remove ids:
+```{r}
+hamstring_only <- hamstring_only %>%
+                    select(-mid, -pid)
+```
+
+
+Caret needs the target to be a factor:
+```{r}
+hamstring_only$injured <- factor(hamstring_only$injured, levels = c("1", "0"), labels = c("YES", "NO"))
+
+hamstring_only %>%
+  count(injured)
+```
+
+
+```{r}
+training_ratio <- 0.75
+
+set.seed(93) #for reproducibility
+train_indices <- createDataPartition(y = hamstring_only[["injured"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
+
+data_train <- hamstring_only[train_indices, ]
+data_test  <- hamstring_only[-train_indices, ]
+
+## FINAL TESTING TO BE DONE ON LAST YEAR's DATA
+```
+
+Setting up cross-validation:
+```{r}
+train_control <- trainControl(method = "cv",
+                              number = 10,
+                              classProbs = TRUE,
+                              summaryFunction = twoClassSummary)
+```
+
+Simple logit:
+```{r}
+set.seed(93)
+glm_model <- train(injured   ~ .,
+                   method    = "glm",
+                   family    = "binomial",
+                   metric    = "ROC",
+                   data      = data_train,
+                   trControl = train_control)
+
+summary(glm_model)
+```
+
+```{r}
+glm_prediction_probs <- predict.train(glm_model, newdata = data_test, type = "prob")
+test_truth <- data_test %>% select(injured)
+```
+
+Help functions:
+```{r}
+fun_calc_auc <- function(prediction_probs, truth) {
+  
+  rocr_prediction <- ROCR::prediction(prediction_probs$YES, truth)
+  AUC <- ROCR::performance(rocr_prediction, "auc")@y.values[[1]]
+  
+  return(AUC)
+}
+```
+
+```{r}
+fun_calc_auc(glm_prediction_probs, test_truth)
 ```
 
