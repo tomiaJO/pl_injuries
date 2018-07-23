@@ -17,7 +17,6 @@ library(lubridate)
 
 library(caret)
 
-
 rm(list = ls())
 injuries_raw <- fread("./../Data/injury_soccer/injury_data_pg.csv") 
 ```
@@ -47,7 +46,7 @@ injuries <- injuries_raw %>%
                          Position,              Foot,             Height,           Weight,
                          starts_with("all_"),   starts_with("pl_"))
 
-injuries %>% glimpse()
+#injuries %>% glimpse()
 ```
 
 
@@ -104,36 +103,48 @@ injuries %>%
   count(injury_type, sort = T) %>%
   mutate(injury_type = ifelse(n < 25, 'Other', injury_type)) %>%
   mutate(injury_type = reorder(injury_type, n)) %>%
+  group_by(injury_type) %>%
+  summarize(n = sum(n)) %>%
+  ungroup() %>%
   ggplot(aes(x = injury_type, y = n)) +
     geom_bar(stat = "identity", fill = "lightblue") +
+    geom_text(aes(label = n), hjust = 1.05, vjust = 0.325, fontface = "bold") +
     coord_flip() + 
     labs(title    = "The most common injury is to the hamstring",
          subtitle = "Number of injuries by type",
-         x        = "Count of injuries happend",
-         y        = "Injury Type",
+         x        = "Injury Type",
+         y        = "Count of injuries",
          caption  = "Note: Injuries that happened less than 25x are group as 'Other'") + 
     theme_minimal() +
-  theme(panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank()) +
-  theme(plot.subtitle = element_text(color = "gray60"),
-        plot.caption  = element_text(color = "gray60")) +
-  theme(axis.title.x = element_text(hjust = 0.36))
+    theme(panel.grid.minor = element_blank()) +
+    theme(plot.subtitle = element_text(color = "gray60"),
+          plot.caption  = element_text(color = "gray60")) +
+    theme(axis.title.x = element_text(hjust = 0.36))
 ```
 
 Visualizing injury lengths distributions:
-```{r}
+```{r, fig.width = 8, fig.height = 5, fig.align = 'center'}
 injuries %>%
   filter(injury_type != '0') %>%
   group_by(injury_type) %>%
   mutate(n = n()) %>%
   ungroup() %>%
-  mutate(injury_type = ifelse(n < 100, 'Other', injury_type)) %>%
+  mutate(injury_type = ifelse(n < 25, 'Other', injury_type)) %>%
   mutate(injury_type = reorder(injury_type, n)) %>%
   mutate(injury_length_capped_180 = ifelse(injury_length > 180, 180, injury_length)) %>%
   ggplot(aes(x = injury_type, y = injury_length_capped_180)) + 
     geom_boxplot() +
     coord_flip() +
-    theme_minimal()
+    labs(title    = "There is significant variety among seriousness of injuries",
+         subtitle = "Length of injuries by type",
+         x        = "Injury Type",
+         y        = "Length of injuries",
+         caption  = "Note: Injuries that happened less than 25x are group as 'Other'") + 
+    theme_minimal() +
+    theme(panel.grid.minor = element_blank()) +
+    theme(plot.subtitle = element_text(color = "gray60"),
+          plot.caption  = element_text(color = "gray60")) +
+    theme(axis.title.x = element_text(hjust = 0.36))
 ```
 
 
