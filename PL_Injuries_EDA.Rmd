@@ -1,0 +1,162 @@
+---
+title: "PL Soccer Injuries"
+author: "Tamas Koncz"
+date: "June 4, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+library(ggridges)
+library(lubridate) 
+
+rm(list = ls())
+injuries_raw <- fread("./../Data/injury_soccer/injury_data_pg.csv") 
+```
+
+
+
+```{r}
+injuries <- injuries_raw %>%
+                  select(Date,                 `Game week`,      `Kick-off`,        mid,
+                         pid,                  `First name`,     `Last name`,       minutes,
+                         injured,               injury_length,    injury_type,
+                         `Country of birth`,    Nationality,     `Date of birth`,
+                         Position,              Foot,             Height,           Weight,
+                         starts_with("all_"))
+```
+
+
+### Data cleaning
+
+Clean-up height:
+```{r}
+##HEIGHT
+##note: it's fine to remove missing Height data - only 6 injuries
+injuries %>%
+  mutate(height_available = !(is.null(Height) | Height == "")) %>%
+  group_by(height_available) %>%
+  summarize(game_count  = n(),
+            min_per_game = sum(minutes) / game_count,
+            injury_count = sum(injured),
+            injury_frequency_pct = injury_count / game_count * 100)
+
+injuries <- injuries %>%
+              filter(!(is.null(Height) | Height == "")) %>%
+              mutate(`Height (cm)` = gsub(pattern = " cm", replacement = "", x = Height)) %>%
+              mutate(`Height (cm)` = as.numeric(`Height (cm)`)) %>%
+              select(everything(), -Height)
+```
+
+Clean-up weight:
+```{r}
+##note: it's fine to remove missing Weight data - only 9 injuries
+injuries %>%
+  mutate(weight_available = !(is.null(Weight) | Weight == "")) %>%
+  group_by(weight_available) %>%
+  summarize(game_count  = n(),
+            min_per_game = sum(minutes) / game_count,
+            injury_count = sum(injured),
+            injury_frequency_pct = injury_count / game_count * 100)
+
+injuries <- injuries %>%
+              filter(!(is.null(Weight) | Weight == "")) %>%
+              mutate(`Weight (kg)` = gsub(pattern = " kg", replacement = "", x = Weight)) %>%
+              mutate(`Weight (kg)` = as.numeric(`Weight (kg)`)) %>%
+              select(everything(), -Weight)
+```
+
+
+Add BMI column:
+```{r}
+injuries <- injuries %>%
+              mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
+```
+
+
+Clean-up date columns & add age column:
+```{r}
+injuries <- injuries %>%
+              mutate(Date = as.Date(Date, "%Y-%m-%d"),
+                     `Date of birth` = as.Date(`Date of birth`, "%Y-%m-%d")) %>%
+              mutate(age = time_length(difftime(Date, `Date of birth`), "years")) 
+```
+
+
+Some very rough filtering to only see players with "significant" playing time:
+```{r}
+pid_list <- injuries %>%
+              group_by(pid) %>%
+              summarize(game_count = n(),
+                        avg_mins_played = mean(minutes)) %>%
+              ungroup() %>%
+              #ggplot(aes(x = avg_mins_played)) + geom_histogram()
+              filter(avg_mins_played >= 45) %>%
+              filter(game_count >= 10) %>%
+              select(pid)
+
+injuries <- injuries %>%
+              inner_join(pid_list, by = "pid")
+```
+
+Again, some filtering on injury type done roughly:
+```{r}
+injuries %>%
+  filter(!injury_type == 0) %>%
+  count(injury_type, sort = TRUE) %>%
+  mutate(injury_type = ifelse(n>=20, injury_type, "other")) %>%
+  mutate(injury_type = reorder(injury_type, n)) %>%
+  ggplot(aes(x = injury_type, y = n)) +
+    geom_bar(stat = "identity") +
+    coord_flip()
+
+injuries <- injuries %>%
+              filter(injury_type == 'Hamstring' | injury_type == 0)
+```
+
+
+Autoencoder-check:
+```{r, fig.align='center', fig.width=15, fig.height=10}
+#note: need to understand how precent_rank works! maybe it needs normalization first?
+# p <- injuries %>%
+#   select(everything(), -pid, -mid, -`Last name`, `First name`, -injury_length, -injury_type, -Date, `Date of birth`) %>%
+#   tidyr::gather(variable, value, -injured) %>%
+#   ggplot(aes(y = as.factor(variable), 
+#              fill = as.factor(injured), 
+#              x = percent_rank(value))) +
+#   geom_density_ridges(alpha = .2) +
+#   theme_minimal()
+# 
+# p
+```
+
+```{r, fig.align='center', fig.width=15, fig.height=10}
+f_plot_density <- function(df, xVariable) {
+  p <- df %>%
+        ggplot(aes_string(x = xVariable)) +
+        geom_density(aes(fill = as.factor(injured)), adjust = 2, alpha = 0.25) +
+        theme_minimal()
+  
+  return(p)
+}
+
+p1 <- f_plot_density(injuries, "age")
+p2 <- f_plot_density(injuries, "`Height (cm)`")
+p3 <- f_plot_density(injuries, "`Weight (kg)`")
+p4 <- f_plot_density(injuries, "bmi")
+p5 <- f_plot_density(injuries, "all_games_season")
+p6 <- f_plot_density(injuries, "all_games_14")
+p7 <- f_plot_density(injuries, "all_mins_season")
+p8 <- f_plot_density(injuries, "all_mins_14")
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, ncol = 1)
+
+```
+
+
