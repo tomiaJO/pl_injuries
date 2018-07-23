@@ -1,0 +1,1 @@
+f_sec_scale <- function(x) sprintf("%.2f", x)
