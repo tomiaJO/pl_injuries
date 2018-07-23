@@ -98,22 +98,26 @@ injuries <- injuries %>%
               mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
 ```
 
-```{r}
+```{r, fig.width = 8, fig.height = 5, fig.align = 'center'}
 injuries %>%
   filter(injury_type != '0') %>%
   count(injury_type, sort = T) %>%
-  mutate(injury_type = ifelse(n < 100, 'Other', injury_type)) %>%
+  mutate(injury_type = ifelse(n < 25, 'Other', injury_type)) %>%
   mutate(injury_type = reorder(injury_type, n)) %>%
   ggplot(aes(x = injury_type, y = n)) +
     geom_bar(stat = "identity", fill = "lightblue") +
     coord_flip() + 
-    labs(title    = "The most common injury is to the hamstring"
+    labs(title    = "The most common injury is to the hamstring",
          subtitle = "Number of injuries by type",
          x        = "Count of injuries happend",
          y        = "Injury Type",
-         caption  = "Injuries that happened less than a 100x are group as 'Other'"
-         )
-    theme_minimal()
+         caption  = "Note: Injuries that happened less than 25x are group as 'Other'") + 
+    theme_minimal() +
+  theme(panel.grid.minor = element_blank(),
+        panel.grid.major = element_blank()) +
+  theme(plot.subtitle = element_text(color = "gray60"),
+        plot.caption  = element_text(color = "gray60")) +
+  theme(axis.title.x = element_text(hjust = 0.36))
 ```
 
 Visualizing injury lengths distributions:
