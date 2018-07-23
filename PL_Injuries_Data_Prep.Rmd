@@ -23,6 +23,21 @@ injuries_raw <- fread("./../Data/injury_soccer/injury_data_pg.csv")
 ```
 
 
+Import UDFs:
+```{r}
+#EDA
+source("f_sec_scale.R")
+source("f_breakdown_by_bins.R")
+source("f_breakdown_by_variable.R")
+
+#Modeling
+source("fun_calc_auc.R")
+source("fun_roc_create.R")
+source("fun_roc_create.R")
+source("fun_calibration_create.R")
+```
+
+
 ```{r}
 injuries <- injuries_raw %>%
                   select(Date,                 `Game week`,      `Kick-off`,        mid,
@@ -45,29 +60,6 @@ injuries <- injuries %>%
 ```
 
 As shown, the injury data is only complete for 2010-2017. That should be still plenty for statistical analysis.
-```{r}
-f_sec_scale <- function(x) sprintf("%.2f", x)
-```
-
-```{r}
-f_breakdown_by_bins <- function(df, s) {
-  max_injury_rate_pct  <- df$injury_rate_pct %>% max()
-  max_game_count       <- df$game_count      %>% max()
-  
-  ggplot(data = df, aes_string(x = s)) +
-    geom_bar(aes(y = game_count, fill = "# of games"), stat= "identity") +
-    geom_point(aes(y = injury_rate_pct * (max_game_count / max_injury_rate_pct), color = "% of injured"), stat= "identity") +
-    geom_line( aes(y = injury_rate_pct * (max_game_count / max_injury_rate_pct), color = "% of injured"), stat= "identity", group = 1) +
-    scale_y_continuous(sec.axis = sec_axis(~./(max_game_count / max_injury_rate_pct), name = "% of injured", labels = f_sec_scale), 
-                     labels = scales::comma) + 
-  scale_fill_manual(name = "Legend", values = c("# of games" = "lightblue")) + 
-  scale_color_manual(name = element_blank(), values = c("% of injured" = "darkblue")) + 
-  labs(y = "# of games", x = s, title = "Hamstring injuries happening during the game") +
-  theme_minimal()
-  ##TODO: legend clean-up
-}
-```
-
 ```{r}
 injuries %>%
   mutate(year = year(Date)) %>%
@@ -110,11 +102,17 @@ injuries <- injuries %>%
 injuries %>%
   filter(injury_type != '0') %>%
   count(injury_type, sort = T) %>%
-  mutate(injury_type = ifelse(n<100, 'Other', injury_type)) %>%
+  mutate(injury_type = ifelse(n < 100, 'Other', injury_type)) %>%
   mutate(injury_type = reorder(injury_type, n)) %>%
   ggplot(aes(x = injury_type, y = n)) +
     geom_bar(stat = "identity", fill = "lightblue") +
-    coord_flip() +
+    coord_flip() + 
+    labs(title    = "The most common injury is to the hamstring"
+         subtitle = "Number of injuries by type",
+         x        = "Count of injuries happend",
+         y        = "Injury Type",
+         caption  = "Injuries that happened less than a 100x are group as 'Other'"
+         )
     theme_minimal()
 ```
 
@@ -146,7 +144,7 @@ hamstring <- injuries %>%
 
 ```{r}
 hamstring %>%
-  filter(injury_length > 0) %>% #should miss at least 1 day
+  filter(injury_length > 1) %>% #should miss at least 1 day
   mutate(injury_length_capped_180 = ifelse(injury_length >= 180, 180, injury_length)) %>% 
   ggplot(aes(x = log(injury_length_capped_180))) +
     geom_density(fill = "lightblue") +
@@ -156,6 +154,10 @@ hamstring %>%
 ```{r}
 hamstring_only <- injuries %>% 
                     filter(injury_type == "0" | injury_type == "Hamstring")
+
+#keep only injuries with "significant" missed time
+hamstring_only <- hamstring_only %>%
+                    filter(!(injury_type == "Hamstring" & injury_length < 7)) 
 ```
 
 
@@ -261,6 +263,7 @@ hamstring_only %>%
   f_breakdown_by_bins(s = "Year")
 ```
 
+#check against weather? or other variables
 ```{r}
 Month_mapping <- data.frame(Month_Num = c(1:12), Month = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
@@ -281,20 +284,6 @@ hamstring_only %>%
 #### Comparison with categorical variables
 
 ```{r}
-f_breakdown_by_variable <- function(df, s) {
-  df %>%
-  group_by(!!as.name(s)) %>%
-  summarize(game_count = n(),
-            injury_count = (sum(injury_type != 0)),
-            injury_rate_pct = injury_count / game_count * 100,
-            avg_minutes_played = mean(minutes)) %>%
-  ungroup() %>%
-  arrange(-injury_rate_pct)
-}
-```
-
-
-```{r}
 f_breakdown_by_variable(hamstring_only, "Position")
 ```
 
@@ -312,21 +301,15 @@ TODO: create some groups based on country of birth / nationality ?
 f_breakdown_by_variable(hamstring_only, "Nationality")
 ```
 
-#### Re-defining injury  
-  
-Question: how many games to count?
-Question: what to do with days_till-injury?
 
-```{r}
-hamstring_only %>% glimpse()
-```
 
 #### Fixing NAs & encode categicals
 
 NAs:
 ```{r}
 hamstring_only <- hamstring_only %>%
-                    select(mid, pid, injured, Position, Foot, age_in_years, `Height (cm)`, `Weight (kg)`, bmi)
+                    select(mid, pid, injured, Position, Foot, age_in_years, `Height (cm)`, `Weight (kg)`, bmi,
+                                     Date, starts_with("all_"), starts_with("pl_"))
 
 hamstring_only <- hamstring_only %>% mutate(Position = ifelse(Position == "", "Missing", Position))
 hamstring_only <- hamstring_only %>% mutate(Foot     = ifelse(Foot     == "", "Missing", Foot))
@@ -334,12 +317,31 @@ hamstring_only <- hamstring_only %>% mutate(Foot     = ifelse(Foot     == "", "M
 
 Encode categoricals:
 ```{r}
+position_encoded <- hamstring_only %>%
+                      select(mid, pid, Position) %>%
+                      mutate(Position = paste("Position", Position, sep = "_")) %>%
+                      mutate(i = 1) %>% tidyr::spread(key = Position, value = i, fill = 0) %>%
+                      select(-Position_Goalkeeper) # assigning Goalkeeper as the "base value" for position
+
+foot_encoded     <- hamstring_only %>%
+                      select(mid, pid, Foot) %>%
+                      mutate(Foot = paste("Foot", Foot, sep = "_")) %>%
+                      mutate(i = 1) %>% tidyr::spread(key = Foot, value = i, fill = 0) %>%
+                      select(-Foot_Right) # assigning Right as the "base value" for Foot
+
 hamstring_only <- hamstring_only %>%
-                    mutate(Position = paste("Position", Position, sep = "_")) %>% 
-                    mutate(Foot     = paste("Foot",     Foot,     sep = "_")) %>%
-                    mutate(i = 1) %>% tidyr::spread(key = Position, value = i, fill = 0) %>%
-                    mutate(i = 1) %>% tidyr::spread(key = Foot, value = i, fill = 0) %>%
-                    select(-Position_Goalkeeper, -Foot_Right) #these are the "base" values
+                    select(-Position, -Foot) %>%
+                    left_join(position_encoded, by = c("mid", "pid")) %>%
+                    left_join(foot_encoded,     by = c("mid", "pid"))
+```
+
+
+Games/minutes fields are populated with NAs for 25 rows:
+```{r}
+#why is this data missing?
+hamstring_only <- hamstring_only %>%
+                    filter(!is.na(all_games_season) & 
+                           !is.na(pl_games_season))
 ```
 
 
@@ -348,22 +350,38 @@ For now, let's build two models: glm & rf. let's see what signals can we pick up
 
 Remove ids:
 ```{r}
+unique_ids <- hamstring_only %>%
+                select(mid, pid) %>%
+                mutate(unique_id = paste(mid, pid, sep = "_"))
+
 hamstring_only <- hamstring_only %>%
+                    mutate(unique_id = paste(mid, pid, sep = "_")) %>%
                     select(-mid, -pid)
 ```
 
 
 Caret needs the target to be a factor:
 ```{r}
-hamstring_only$injured <- factor(hamstring_only$injured, levels = c("1", "0"), labels = c("YES", "NO"))
+hamstring_only$injured <- factor(hamstring_only$injured, levels = c("1", "0"), labels = c("Yes", "No"))
 
 hamstring_only %>%
   count(injured)
 ```
 
+Set aside last full years of data to evaluate performance of final model:
+```{r}
+performance_eval <- hamstring_only %>% 
+                      filter(year(Date) == 2017) %>%
+                      select(-Date)
+
+hamstring_only <- hamstring_only %>% 
+                      filter(year(Date) < 2017) %>%
+                      select(-Date)
+```
+
 
 ```{r}
-training_ratio <- 0.75
+training_ratio <- 0.25
 
 set.seed(93) #for reproducibility
 train_indices <- createDataPartition(y = hamstring_only[["injured"]],
@@ -373,8 +391,6 @@ train_indices <- createDataPartition(y = hamstring_only[["injured"]],
 
 data_train <- hamstring_only[train_indices, ]
 data_test  <- hamstring_only[-train_indices, ]
-
-## FINAL TESTING TO BE DONE ON LAST YEAR's DATA
 ```
 
 Setting up cross-validation:
@@ -392,7 +408,7 @@ glm_model <- train(injured   ~ .,
                    method    = "glm",
                    family    = "binomial",
                    metric    = "ROC",
-                   data      = data_train,
+                   data      = data_train %>% select(-unique_id),
                    trControl = train_control)
 
 summary(glm_model)
@@ -400,21 +416,62 @@ summary(glm_model)
 
 ```{r}
 glm_prediction_probs <- predict.train(glm_model, newdata = data_test, type = "prob")
-test_truth <- data_test %>% select(injured)
-```
-
-Help functions:
-```{r}
-fun_calc_auc <- function(prediction_probs, truth) {
-  
-  rocr_prediction <- ROCR::prediction(prediction_probs$YES, truth)
-  AUC <- ROCR::performance(rocr_prediction, "auc")@y.values[[1]]
-  
-  return(AUC)
-}
+test_truth <- data_test$injured
 ```
 
 ```{r}
-fun_calc_auc(glm_prediction_probs, test_truth)
+glm_AUC <- fun_calc_auc(glm_prediction_probs, test_truth)
+glm_ROC <- fun_roc_create(glm_prediction_probs, test_truth, glm_AUC, "glm")
+glm_calibration <- fun_calibration_create(glm_prediction_probs, test_truth, "glm")
+```
+
+
+Random Forest - this will be our benchmark model:
+```{r}
+train_Control <- trainControl(method = "CV",
+                              number = 10,
+                              classProbs = TRUE,
+                              summaryFunction = twoClassSummary,
+                              selectionFunction = "best")
+
+tune_Grid_rf <- data.frame(mtry = c(2:7))
+#round(sqrt(ncol(data_train)-1))
+
+set.seed(93)
+rf_500_fit <- train(injured ~ .,
+                   data = data_train,
+                   method = "rf",
+                   metric = "ROC",
+                   trControl = train_Control,
+                   tuneGrid = tune_Grid_rf ,
+                   ntree = 50,
+                   importance = T)
+
+print(rf_500_fit)
+```
+
+```{r}
+rf_500_prediction_probs <- predict.train(rf_500_fit, newdata = data_test, type = "prob")
+```
+
+```{r}
+rf_500_AUC <- fun_calc_auc(rf_500_prediction_probs, test_truth)
+rf_500_ROC <- fun_roc_create(rf_500_prediction_probs, test_truth, rf_500_AUC, "glm")
+rf_500_calibration <- fun_calibration_create(rf_500_prediction_probs, test_truth, "glm")
+```
+
+```{r}
+resamples_object <- resamples(list("glm_model" = glm_model,
+                                   "rf_500_fit" = rf_500_fit))
+
+resamples_object$values %>%
+  tidyr::gather(key= "Resample", factor_key = F) %>%
+  setnames(c("Fold", "Model~Metric", "Value")) %>%
+  mutate(model = stringr::str_split(`Model~Metric`, "~", simplify = T)[,1],
+         metric = stringr::str_split(`Model~Metric`, "~", simplify = T)[,2]) %>%
+  mutate(model = factor(model, levels = c("glm_model", "rf_500_fit"))) %>%
+  ggplot(aes(x= model, y= Value, fill = model)) +
+    geom_boxplot() +
+    facet_grid(~metric)
 ```
 
