@@ -45,7 +45,7 @@ injuries <- injuries_raw %>%
                          `Country of birth`,    Nationality,     `Date of birth`,
                          Position,              Foot,             Height,           Weight,
                          starts_with("all_"),   starts_with("pl_"))
-
+rm(injuries_raw)
 #injuries %>% glimpse()
 ```
 
@@ -97,6 +97,9 @@ injuries <- injuries %>%
               mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
 ```
 
+##Explain choice to investigate hamstring issues
+
+By occurence:
 ```{r, fig.width = 8, fig.height = 5, fig.align = 'center'}
 injuries %>%
   filter(injury_type != '0') %>%
@@ -122,7 +125,7 @@ injuries %>%
     theme(axis.title.x = element_text(hjust = 0.36))
 ```
 
-Visualizing injury lengths distributions:
+By length ("severity")
 ```{r, fig.width = 8, fig.height = 5, fig.align = 'center'}
 injuries %>%
   filter(injury_type != '0') %>%
@@ -152,13 +155,8 @@ injuries %>%
 For now, focus on 'Hamstring', then see if it can be extended to all strains.
 (Note: at the time of writing this - https://www.bbc.com/sport/football/44671242)
 ```{r}
-hamstring <- injuries %>%
-               filter(injury_type == "Hamstring")
-```
-
-
-```{r}
-hamstring %>%
+injuries %>%
+  filter(injury_type == "Hamstring") %>%
   filter(injury_length > 1) %>% #should miss at least 1 day
   mutate(injury_length_capped_180 = ifelse(injury_length >= 180, 180, injury_length)) %>% 
   ggplot(aes(x = log(injury_length_capped_180))) +
@@ -172,7 +170,9 @@ hamstring_only <- injuries %>%
 
 #keep only injuries with "significant" missed time
 hamstring_only <- hamstring_only %>%
-                    filter(!(injury_type == "Hamstring" & injury_length < 7)) 
+                    filter(!(injury_type == "Hamstring" & injury_length < 7))
+
+rm(injuries)
 ```
 
 
@@ -294,6 +294,8 @@ hamstring_only %>%
   ungroup() %>%
   mutate(injury_rate_pct = injury_count / game_count * 100) %>%
   f_breakdown_by_bins(s = "Month")
+
+rm(Month_mapping)
 ```
   
 #### Comparison with categorical variables
@@ -348,6 +350,9 @@ hamstring_only <- hamstring_only %>%
                     select(-Position, -Foot) %>%
                     left_join(position_encoded, by = c("mid", "pid")) %>%
                     left_join(foot_encoded,     by = c("mid", "pid"))
+
+rm(position_encoded)
+rm(foot_encoded)
 ```
 
 
@@ -396,7 +401,7 @@ hamstring_only <- hamstring_only %>%
 
 
 ```{r}
-training_ratio <- 0.25
+training_ratio <- 0.20
 
 set.seed(93) #for reproducibility
 train_indices <- createDataPartition(y = hamstring_only[["injured"]],
@@ -449,9 +454,10 @@ train_Control <- trainControl(method = "CV",
                               summaryFunction = twoClassSummary,
                               selectionFunction = "best")
 
-tune_Grid_rf <- data.frame(mtry = c(2:7))
-#round(sqrt(ncol(data_train)-1))
+tune_Grid_rf <- data.frame(mtry = c(4:round(sqrt(ncol(data_train)-1))))
 
+gc()
+memory.limit(size = 100000)
 set.seed(93)
 rf_500_fit <- train(injured ~ .,
                    data = data_train,
@@ -463,6 +469,10 @@ rf_500_fit <- train(injured ~ .,
                    importance = T)
 
 print(rf_500_fit)
+
+saveRDS(model, "rf_500_fit.rds")
+rm(rf_500_fit)
+#my_model <- readRDS("model.rds")
 ```
 
 ```{r}
@@ -470,20 +480,20 @@ rf_500_prediction_probs <- predict.train(rf_500_fit, newdata = data_test, type =
 ```
 
 ```{r}
-rf_500_AUC <- fun_calc_auc(rf_500_prediction_probs, test_truth)
-rf_500_ROC <- fun_roc_create(rf_500_prediction_probs, test_truth, rf_500_AUC, "glm")
+rf_500_AUC         <- fun_calc_auc(          rf_500_prediction_probs, test_truth)
+rf_500_ROC         <- fun_roc_create(        rf_500_prediction_probs, test_truth, rf_500_AUC, "glm")
 rf_500_calibration <- fun_calibration_create(rf_500_prediction_probs, test_truth, "glm")
 ```
 
 ```{r}
-resamples_object <- resamples(list("glm_model" = glm_model,
+resamples_object <- resamples(list("glm_model"  = glm_model,
                                    "rf_500_fit" = rf_500_fit))
 
 resamples_object$values %>%
   tidyr::gather(key= "Resample", factor_key = F) %>%
   setnames(c("Fold", "Model~Metric", "Value")) %>%
-  mutate(model = stringr::str_split(`Model~Metric`, "~", simplify = T)[,1],
-         metric = stringr::str_split(`Model~Metric`, "~", simplify = T)[,2]) %>%
+  mutate(model  = stringr::str_split(`Model~Metric`,  "~", simplify = T)[, 1],
+         metric = stringr::str_split(`Model~Metric`,  "~", simplify = T)[, 2]) %>%
   mutate(model = factor(model, levels = c("glm_model", "rf_500_fit"))) %>%
   ggplot(aes(x= model, y= Value, fill = model)) +
     geom_boxplot() +
