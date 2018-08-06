@@ -448,55 +448,55 @@ glm_calibration <- fun_calibration_create(glm_prediction_probs, test_truth, "glm
 
 Random Forest - this will be our benchmark model:
 ```{r}
-train_Control <- trainControl(method = "CV",
-                              number = 10,
-                              classProbs = TRUE,
-                              summaryFunction = twoClassSummary,
-                              selectionFunction = "best")
-
-tune_Grid_rf <- data.frame(mtry = c(4:round(sqrt(ncol(data_train)-1))))
-
-gc()
-memory.limit(size = 100000)
-set.seed(93)
-rf_500_fit <- train(injured ~ .,
-                   data = data_train,
-                   method = "rf",
-                   metric = "ROC",
-                   trControl = train_Control,
-                   tuneGrid = tune_Grid_rf ,
-                   ntree = 50,
-                   importance = T)
-
-print(rf_500_fit)
-
-saveRDS(model, "rf_500_fit.rds")
-rm(rf_500_fit)
-#my_model <- readRDS("model.rds")
+# train_Control <- trainControl(method = "CV",
+#                               number = 10,
+#                               classProbs = TRUE,
+#                               summaryFunction = twoClassSummary,
+#                               selectionFunction = "best")
+# 
+# tune_Grid_rf <- data.frame(mtry = c(4:round(sqrt(ncol(data_train)-1))))
+# 
+# gc()
+# memory.limit(size = 100000)
+# set.seed(93)
+# rf_500_fit <- train(injured ~ .,
+#                    data = data_train,
+#                    method = "rf",
+#                    metric = "ROC",
+#                    trControl = train_Control,
+#                    tuneGrid = tune_Grid_rf ,
+#                    ntree = 50,
+#                    importance = T)
+# 
+# print(rf_500_fit)
+# 
+# saveRDS(model, "rf_500_fit.rds")
+# rm(rf_500_fit)
+# #my_model <- readRDS("model.rds")
 ```
 
 ```{r}
-rf_500_prediction_probs <- predict.train(rf_500_fit, newdata = data_test, type = "prob")
+# rf_500_prediction_probs <- predict.train(rf_500_fit, newdata = data_test, type = "prob")
 ```
 
 ```{r}
-rf_500_AUC         <- fun_calc_auc(          rf_500_prediction_probs, test_truth)
-rf_500_ROC         <- fun_roc_create(        rf_500_prediction_probs, test_truth, rf_500_AUC, "glm")
-rf_500_calibration <- fun_calibration_create(rf_500_prediction_probs, test_truth, "glm")
+# rf_500_AUC         <- fun_calc_auc(          rf_500_prediction_probs, test_truth)
+# rf_500_ROC         <- fun_roc_create(        rf_500_prediction_probs, test_truth, rf_500_AUC, "glm")
+# rf_500_calibration <- fun_calibration_create(rf_500_prediction_probs, test_truth, "glm")
 ```
 
 ```{r}
-resamples_object <- resamples(list("glm_model"  = glm_model,
-                                   "rf_500_fit" = rf_500_fit))
-
-resamples_object$values %>%
-  tidyr::gather(key= "Resample", factor_key = F) %>%
-  setnames(c("Fold", "Model~Metric", "Value")) %>%
-  mutate(model  = stringr::str_split(`Model~Metric`,  "~", simplify = T)[, 1],
-         metric = stringr::str_split(`Model~Metric`,  "~", simplify = T)[, 2]) %>%
-  mutate(model = factor(model, levels = c("glm_model", "rf_500_fit"))) %>%
-  ggplot(aes(x= model, y= Value, fill = model)) +
-    geom_boxplot() +
-    facet_grid(~metric)
+# resamples_object <- resamples(list("glm_model"  = glm_model,
+#                                    "rf_500_fit" = rf_500_fit))
+# 
+# resamples_object$values %>%
+#   tidyr::gather(key= "Resample", factor_key = F) %>%
+#   setnames(c("Fold", "Model~Metric", "Value")) %>%
+#   mutate(model  = stringr::str_split(`Model~Metric`,  "~", simplify = T)[, 1],
+#          metric = stringr::str_split(`Model~Metric`,  "~", simplify = T)[, 2]) %>%
+#   mutate(model = factor(model, levels = c("glm_model", "rf_500_fit"))) %>%
+#   ggplot(aes(x= model, y= Value, fill = model)) +
+#     geom_boxplot() +
+#     facet_grid(~metric)
 ```
 
