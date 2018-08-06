@@ -15,9 +15,13 @@ source("GlobalVariables.R")
 injuries_raw <- fread(paste(path_RawData, "injury_data_pg.csv", sep = "/")) 
 
 #import EDA functions
-source(paste(path_Functions, "f_sec_scale.R", sep = "/"))
-source(paste(path_Functions, "f_breakdown_by_bins.R", sep = "/"))
+source(paste(path_Functions, "f_sec_scale.R",             sep = "/"))
+source(paste(path_Functions, "f_breakdown_by_bins.R",     sep = "/"))
 source(paste(path_Functions, "f_breakdown_by_variable.R", sep = "/"))
+source(paste(path_Functions, "f_calculate_ci.R",          sep = "/"))
+
+#import ggplot themes
+source(paste(path_Functions, "ggplot_themes.R",           sep = "/"))
 
 ##Formatting clean-up for date variables
 injuries <- injuries_raw %>%
@@ -26,27 +30,63 @@ injuries <- injuries_raw %>%
               mutate(age_in_years = time_length(difftime(Date, `Date of birth`), "years")) 
 
 
+##Add Month
+Month_mapping <- data.frame(Month_Num = c(1:12), Month = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+                            Month_in_Season = c(6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5))
+
+injuries <- injuries %>%
+              mutate(Month_Num = month(Date)) %>%
+              left_join(Month_mapping, by = "Month_Num") %>%
+              mutate(Month = reorder(Month, Month_in_Season)) %>%
+              select(-Month_Num, -Month_in_Season)
+
+##Add Year
+injuries <- injuries %>%
+              mutate(Year = year(Date))
+
+
+##Fix formatting: for height & weight
+injuries <- injuries %>%
+  filter(!(is.null(Height) | Height == "")) %>%
+  mutate(`Height (cm)` = gsub(pattern = " cm", replacement = "", x = Height)) %>%
+  mutate(`Height (cm)` = as.numeric(`Height (cm)`)) %>%
+  select(everything(), -Height)
+
+injuries <- injuries %>%
+  filter(!(is.null(Weight) | Weight == "")) %>%
+  mutate(`Weight (kg)` = gsub(pattern = " kg", replacement = "", x = Weight)) %>%
+  mutate(`Weight (kg)` = as.numeric(`Weight (kg)`)) %>%
+  select(everything(), -Weight)
+
+
+##Add BMI column:
+injuries <- injuries %>%
+  mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
+
+
 ##Visualize: Injury trend over years
 p_injury_trend <- injuries %>%
-                    mutate(Year = year(Date)) %>%
                     group_by(Year) %>%
                     summarize(game_count = n(),
                               injury_count = (sum(injury_type != 0))) %>%
                     ungroup() %>%
                     mutate(injury_rate_pct = injury_count / game_count * 100) %>%
-                    f_breakdown_by_bins(s_x = "Year", s_title = "Injury data is missing pre 2010",
-                                        s_subtitle = "Number of games, injury rate by year")
+                    f_breakdown_by_bins(s_x = "Year", 
+                                        s_title = "Injury data is missing pre 2010",
+                                        s_subtitle = "Number of games, injury rate by year") +
+                    story_theme()
 
 ggsave(filename = paste(path_Figures, "1. Injury Trend Over Years.jpeg", sep = "/"), 
        plot = p_injury_trend, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
 
+
 ##Drop years with no injury data
 injuries <- injuries %>%
-              filter(year(Date) %in% c(2010:2017))
+              filter(Year %in% c(2010:2017))
 
-##TODO: create a 2-chart figure, right one should be the "zoom" on 2010-2017
 
 ##Visualize: Injury type counts
 p_injury_types <- injuries %>%
@@ -65,15 +105,8 @@ p_injury_types <- injuries %>%
                          subtitle = "Number of injuries by type",
                          x        = "Injury Type",
                          y        = "Count of injuries",
-                         caption  = "Note: Injuries that happened less than 25x are group as 'Other'") + 
-                    theme_minimal() +
-                    theme(legend.position = "bottom") +
-                    theme(panel.grid.minor = element_blank()) +
-                    theme(plot.title =    element_text(face = "italic",  size = 14),
-                          plot.subtitle = element_text(color = "gray60", size = 10),
-                          plot.caption  = element_text(color = "gray60", size = 8)) +
-                    theme(axis.title.x =  element_text(hjust = 1, size = 8),
-                          axis.title.y =  element_text(hjust = 1, size = 8))
+                         caption  = "Note: Injuries that happened less than 25x are group as 'Other'") +
+                    story_theme()
 
 ggsave(filename = paste(path_Figures, "2. Injury Types.jpeg", sep = "/"), 
        plot = p_injury_types, 
@@ -96,15 +129,8 @@ p_injury_lenghts <- injuries %>%
                            subtitle = "Length of injuries by type",
                            x        = "Injury Type",
                            y        = "Length of injuries",
-                           caption  = "Note: Injuries that happened less than 25x are group as 'Other'") + 
-                      theme_minimal() +
-                      theme(legend.position = "bottom") +
-                      theme(panel.grid.minor = element_blank()) +
-                      theme(plot.title =    element_text(face = "italic",  size = 14),
-                            plot.subtitle = element_text(color = "gray60", size = 10),
-                            plot.caption  = element_text(color = "gray60", size = 8)) +
-                      theme(axis.title.x =  element_text(hjust = 1, size = 8),
-                            axis.title.y =  element_text(hjust = 1, size = 8))
+                           caption  = "Note: Injuries that happened less than 25x are group as 'Other'") +
+                      technical_theme()
 
 ggsave(filename = paste(path_Figures, "3. Injury Lengths.jpeg", sep = "/"), 
        plot = p_injury_lenghts, 
@@ -123,28 +149,23 @@ injuries %>%
   summarize(perc99_injury_length = quantile(injury_length, .95)) 
 
 p_hamstring_lenghts <- injuries %>%
-  filter(injury_type == "Hamstring") %>%
-  filter(injury_length > 1) %>% #should miss at least 1 day
-  mutate(injury_length_capped_180 = ifelse(injury_length >= 180, 180, injury_length)) %>% 
-  ggplot(aes(x = injury_length_capped_180)) +
-  geom_density(fill = "steelblue2") +
-  geom_vline(xintercept = 18, color = "firebrick") +
-  geom_text(aes(x = 18, y = 0.03), label = "Median: 18 days", hjust = -0.1, vjust = 0, color = "firebrick") +
-  geom_vline(xintercept = 78, color = "firebrick") +
-  geom_text(aes(x = 78, y = 0.02), label = ".95 percentile: 78 days", hjust = -0.1, vjust = 0, color = "firebrick") +
-  labs(title    = "Typical injuries last 1 to 11 weeks",
-       subtitle = "Density plot, Length of injuries",
-       x        = "Injury Length (days)",
-       y        = "Density",
-       caption  = "Note: Injury length was capped at 180 days") + 
-  theme_minimal() +
-  theme(legend.position = "bottom") +
-  theme(panel.grid.minor = element_blank()) +
-  theme(plot.title =    element_text(face = "italic",  size = 14),
-        plot.subtitle = element_text(color = "gray60", size = 10),
-        plot.caption  = element_text(color = "gray60", size = 8)) +
-  theme(axis.title.x =  element_text(hjust = 1, size = 8),
-        axis.title.y =  element_text(hjust = 1, size = 8))
+                        filter(injury_type == "Hamstring") %>%
+                        filter(injury_length > 1) %>% #should miss at least 1 day
+                        mutate(injury_length_capped_180 = ifelse(injury_length >= 180, 180, injury_length)) %>% 
+                        ggplot(aes(x = injury_length_capped_180)) +
+                        geom_density(fill = "steelblue2") +
+                        geom_vline(xintercept = 18, color = "firebrick") +
+                        geom_text(aes(x = 18, y = 0.03), label = "Median: 18 days", hjust = -0.1, vjust = 0, color = "firebrick") +
+                        geom_vline(xintercept = 78, color = "firebrick") +
+                        geom_text(aes(x = 78, y = 0.02), label = ".95 percentile: 78 days", hjust = -0.1, vjust = 0, color = "firebrick") +
+                        labs(title    = "Typical injuries last 1 to 11 weeks",
+                             subtitle = "Density plot, Length of injuries",
+                             x        = "Injury Length (days)",
+                             y        = "Density",
+                             caption  = "Note: Injury length was capped at 180 days") + 
+                        theme_minimal() +
+                        theme(legend.position = "bottom") +
+                        story_theme()
 
 ggsave(filename = paste(path_Figures, "4. Hamstring Injury Lengths.jpeg", sep = "/"), 
        plot = p_hamstring_lenghts, 
@@ -152,31 +173,134 @@ ggsave(filename = paste(path_Figures, "4. Hamstring Injury Lengths.jpeg", sep = 
        dpi = 1600, width = 6, height = 4.5)
 
 
-##fix formatting: for height & weight
-injuries <- injuries %>%
-              filter(!(is.null(Height) | Height == "")) %>%
-              mutate(`Height (cm)` = gsub(pattern = " cm", replacement = "", x = Height)) %>%
-              mutate(`Height (cm)` = as.numeric(`Height (cm)`)) %>%
-              select(everything(), -Height)
-
-injuries <- injuries %>%
-              filter(!(is.null(Weight) | Weight == "")) %>%
-              mutate(`Weight (kg)` = gsub(pattern = " kg", replacement = "", x = Weight)) %>%
-              mutate(`Weight (kg)` = as.numeric(`Weight (kg)`)) %>%
-              select(everything(), -Weight)
-
-
-##Add BMI column:
-injuries <- injuries %>%
-  mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
-
 ##Keep only hamstring
 hamstring_only <- injuries %>% 
                     filter(injury_type == "0" | injury_type == "Hamstring")
 
+
 ##Keep only injuries with "significant" missed time
 hamstring_only <- hamstring_only %>%
                     filter(!(injury_type == "Hamstring" & injury_length < 7))
+
+
+## REMOVE: minimal playing time
+hamstring_only <- hamstring_only %>%
+                    filter(!is.na(pl_mins_season)) %>%
+                    filter(!is.na(all_mins_season))
+
+season_min_cutoff <- 180
+
+tmp <- hamstring_only %>%
+        group_by(pl_mins_season < season_min_cutoff) %>%
+        summarize(game_count = n(),
+                  injury_count = sum(injured),
+                  injury_rate_pct = sum(injured) / n(),
+                  ci95_lower_injury_rate_pct = f_calculate_ci(injury_rate_pct, game_count, 0.95)$lower,
+                  ci95_upper_injury_rate_pct = f_calculate_ci(injury_rate_pct, game_count, 0.95)$upper) %>%
+        ungroup()
+
+keep_injury_rate_pct <- formatC(tmp[tmp$`pl_mins_season < season_min_cutoff` == FALSE, ]$injury_rate_pct * 100, digits = 2, format = "f")
+cut_injury_rate_pct  <- formatC(tmp[tmp$`pl_mins_season < season_min_cutoff` == TRUE,  ]$injury_rate_pct * 100, digits = 2, format = "f")
+
+p_by_minutes <- hamstring_only %>%
+                  ggplot(aes(x = pl_mins_season)) +
+                    geom_density(fill = "steelblue2", color = "steelblue2") 
+
+d <- ggplot_build(p_by_minutes)$data[[1]]
+ypos_line <- round(d$ymax %>% max() * 1.05, digits = 4)
+xpos_line <- d$x %>% max() 
+
+p_by_minutes <- p_by_minutes +
+                  geom_segment(aes(x = 0, y = ypos_line, xend = season_min_cutoff, yend = ypos_line), color = "firebrick") +
+                  geom_segment(aes(x = season_min_cutoff, y = ypos_line, xend = xpos_line, yend = ypos_line), color = "steelblue2") 
+
+p_by_minutes <- p_by_minutes +
+                  geom_point(aes(x = season_min_cutoff / 2, y = ypos_line), 
+                             color = "firebrick", size = 5) +
+                  geom_text(aes(x = season_min_cutoff / 2, y = ypos_line), 
+                            label = cut_injury_rate_pct, color = "white", size = 2.5) +
+                  geom_point(aes(x = (xpos_line - season_min_cutoff) / 2 + season_min_cutoff, y = ypos_line), 
+                             color = "steelblue2", size = 5) +
+                  geom_text(aes(x = (xpos_line - season_min_cutoff) / 2 + season_min_cutoff, y = ypos_line), 
+                            label = keep_injury_rate_pct, color = "white", size = 2.5) 
+
+p_by_minutes <- p_by_minutes +
+                  geom_area(data = subset(d, x < season_min_cutoff), aes(x = x, y = y), fill = "firebrick", color = "firebrick") +
+                  scale_x_continuous(labels = scales::comma) +
+                  scale_y_continuous(labels = scales::comma) +
+                  labs(y = "Density",
+                       x = "Minutes played in the PL season",
+                       title = "Minutes",
+                       subtitle = "s_subtitle",
+                       caption = "s_caption") +
+                  story_theme()
+
+ggsave(filename = paste(path_Figures, "5. Hamstring Injury vs PL season minutes.jpeg", sep = "/"), 
+       plot = p_by_minutes, 
+       device = "jpeg", 
+       dpi = 1600, width = 6, height = 4.5)
+
+## REMOVE: goalkeepers & missing position
+p_by_position1 <- hamstring_only %>%
+                  mutate(Position = ifelse(Position == "", "Missing", Position)) %>%
+                  group_by(Position) %>%
+                  summarize(game_count = n()) %>%
+                  ungroup() %>%
+                  mutate(Position = reorder(Position, game_count)) %>%
+                  ggplot(aes(x = Position, y = game_count)) +
+                    geom_bar(stat = "identity", fill = "steelblue2") +
+                    scale_y_continuous(labels = scales::comma) +
+                    coord_flip() + 
+                    labs(y = "# of games",
+                         x = "Position",
+                         title = "Positional breakdown of games played and injury rates",
+                         subtitle = "s_subtitle",
+                         caption = "s_caption") +
+                    story_theme()
+
+ggsave(filename = paste(path_Figures, "5a. Hamstring Injury vs Position.jpeg", sep = "/"), 
+       plot = p_by_position1, 
+       device = "jpeg", 
+       dpi = 1600, width = 4, height = 4.5)
+
+p_by_position2 <- hamstring_only %>%
+                    mutate(Position = ifelse(Position == "", "Missing", Position)) %>%
+                    group_by(Position) %>%
+                    summarize(game_count = n(),
+                              injury_count = sum(injured),
+                              injury_rate_pct = injury_count / game_count,
+                              ci95_lower_injury_rate_pct = f_calculate_ci(injury_rate_pct, game_count, 0.95)$lower,
+                              ci95_upper_injury_rate_pct = f_calculate_ci(injury_rate_pct, game_count, 0.95)$upper) %>%
+                    ungroup() %>%
+                    mutate(injury_rate_pct            = formatC(injury_rate_pct * 100, digits = 2, format = "f"),
+                           ci95_lower_injury_rate_pct = formatC(ci95_lower_injury_rate_pct * 100, digits = 2, format = "f"),
+                           ci95_upper_injury_rate_pct = formatC(ci95_upper_injury_rate_pct * 100, digits = 2, format = "f")) %>%
+                    mutate(Position = reorder(Position, game_count)) %>%
+                    ggplot(aes(x = Position, y = injury_rate_pct, label = injury_rate_pct)) + 
+                      geom_point(stat='identity', color = "steelblue2", size = 6) +
+                      geom_segment(aes(y = ci95_lower_injury_rate_pct, 
+                                       yend = ci95_upper_injury_rate_pct, 
+                                       x = Position, 
+                                       xend = Position), 
+                                   color = "steelblue2") +
+                      geom_text(color = "white", size = 2) +
+                      coord_flip() + 
+                      labs(y = "# of games",
+                           x = "Position",
+                           title = "Positional breakdown of games played and injury rates",
+                           subtitle = "s_subtitle",
+                           caption = "s_caption") +
+                      story_theme()
+
+
+ggsave(filename = paste(path_Figures, "5b. Hamstring Injury vs Position.jpeg", sep = "/"), 
+       plot = p_by_position2, 
+       device = "jpeg", 
+       dpi = 1600, width = 6, height = 4.5)
+
+##TODO: finalize formatting, grid
+#Note1 - Goalkeepers: very different dynamics, as shown by the Injury rate %
+#Note2 - Missing: don't trust that data very much
 
 
 ##Visualize: Injury vs Minutes played in a given game - less time, less chance to get injured?
@@ -312,9 +436,7 @@ ggsave(filename = paste(path_Figures, "11. Hamstring Injury vs Year.jpeg", sep =
 
 
 ##By Month --> visualize by year as well
-Month_mapping <- data.frame(Month_Num = c(1:12), Month = c("Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                                           "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
-                            Month_in_Season = c(6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5))
+
 
 p_hamstring_vs_month <- hamstring_only %>%
                           mutate(Month_Num = month(Date)) %>%
@@ -329,11 +451,58 @@ p_hamstring_vs_month <- hamstring_only %>%
                                               s_subtitle = "Number of games, injury rate by month",
                                               s_x = "Month")
 
+
 ggsave(filename = paste(path_Figures, "12. Hamstring Injury vs Month.jpeg", sep = "/"), 
        plot = p_hamstring_vs_month, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
 
+
+## Now with confidence intervals
+p_hamstring_vs_month_w_conf <- hamstring_only %>%
+                                group_by(Month) %>%
+                                summarize(game_count = n(),
+                                          injury_count = (sum(injury_type != 0))) %>%
+                                ungroup() %>%
+                                mutate(injury_rate_pct = injury_count / game_count) %>%
+                                mutate(ci95_lower_injury_rate_pct = f_calculate_ci(injury_rate_pct, game_count, 0.95)$lower,
+                                       ci95_upper_injury_rate_pct = f_calculate_ci(injury_rate_pct, game_count, 0.95)$upper) %>%
+                                mutate(injury_rate_pct            = injury_rate_pct            * 100,
+                                       ci95_lower_injury_rate_pct = ci95_lower_injury_rate_pct * 100,
+                                       ci95_upper_injury_rate_pct = ci95_upper_injury_rate_pct * 100) %>%
+                                ggplot(aes(x = Month, y = injury_rate_pct, group = 1)) +
+                                  geom_line() +
+                                  geom_errorbar(aes(ymin = ci95_lower_injury_rate_pct, ymax = ci95_upper_injury_rate_pct), 
+                                                colour = "black", 
+                                                width = .4) +
+                                  geom_point(aes(size = game_count), shape = 21, fill = "white") +
+                                labs(y = "Injury rate (in %)", 
+                                     x = "Month", 
+                                     title = "Hamstring Injury vs Month", 
+                                     subtitle = "Injury rate by month, with 95% confidence intervals",
+                                     caption = "Note: Bubble sizes represent # of games in each category") +
+                                technical_theme()
+
+
+ggsave(filename = paste(path_Figures, "12b. Hamstring Injury vs Month.jpeg", sep = "/"), 
+       plot = p_hamstring_vs_month_w_conf, 
+       device = "jpeg", 
+       dpi = 1600, width = 6, height = 4.5)
+
+## Breaken out by year -- NOT FINISHED
+hamstring_only %>%
+  mutate(Month_Num = month(Date)) %>%
+  left_join(Month_mapping, by = "Month_Num") %>%
+  mutate(Month = reorder(Month, Month_in_Season)) %>%
+  
+  group_by(Month) %>%
+  summarize(game_count = n(),
+            injury_count = (sum(injury_type != 0))) %>%
+  ungroup() %>%
+  mutate(injury_rate_pct = injury_count / game_count * 100) %>%
+  f_breakdown_by_bins(s_title = "Hamstring Injury vs Month",
+                      s_subtitle = "Number of games, injury rate by month",
+                      s_x = "Month")
 
 #######################################
 ## Comparison with categorical variables
