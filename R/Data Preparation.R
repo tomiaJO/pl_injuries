@@ -23,11 +23,14 @@ source(paste(path_Functions, "f_calculate_ci.R",          sep = "/"))
 #import ggplot themes
 source(paste(path_Functions, "ggplot_themes.R",           sep = "/"))
 
+#import correlation matrix functions
+source(paste(path_Functions, "correl_functions.R",        sep = "/"))
+
 ##Formatting clean-up for date variables
 injuries <- injuries_raw %>%
               mutate(Date = as.Date(Date, "%Y-%m-%d"),
                      `Date of birth` = as.Date(`Date of birth`, "%Y-%m-%d")) %>%
-              mutate(age_in_years = time_length(difftime(Date, `Date of birth`), "years")) 
+              mutate(`Age (Years)` = time_length(difftime(Date, `Date of birth`), "years")) 
 
 
 ##Add Month
@@ -48,21 +51,21 @@ injuries <- injuries %>%
 
 ##Fix formatting: for height & weight
 injuries <- injuries %>%
-  filter(!(is.null(Height) | Height == "")) %>%
-  mutate(`Height (cm)` = gsub(pattern = " cm", replacement = "", x = Height)) %>%
-  mutate(`Height (cm)` = as.numeric(`Height (cm)`)) %>%
-  select(everything(), -Height)
+              filter(!(is.null(Height) | Height == "")) %>%
+              mutate(`Height (cm)` = gsub(pattern = " cm", replacement = "", x = Height)) %>%
+              mutate(`Height (cm)` = as.numeric(`Height (cm)`)) %>%
+              select(everything(), -Height)
 
 injuries <- injuries %>%
-  filter(!(is.null(Weight) | Weight == "")) %>%
-  mutate(`Weight (kg)` = gsub(pattern = " kg", replacement = "", x = Weight)) %>%
-  mutate(`Weight (kg)` = as.numeric(`Weight (kg)`)) %>%
-  select(everything(), -Weight)
+              filter(!(is.null(Weight) | Weight == "")) %>%
+              mutate(`Weight (kg)` = gsub(pattern = " kg", replacement = "", x = Weight)) %>%
+              mutate(`Weight (kg)` = as.numeric(`Weight (kg)`)) %>%
+              select(everything(), -Weight)
 
 
 ##Add BMI column:
 injuries <- injuries %>%
-  mutate(bmi = `Weight (kg)` / (`Height (cm)` / 100)^2)
+  mutate(BMI = `Weight (kg)` / (`Height (cm)` / 100)^2)
 
 
 ##Visualize: Injury trend over years
@@ -235,10 +238,10 @@ p_by_minutes <- p_by_minutes +
                        caption = "s_caption") +
                   story_theme()
 
-ggsave(filename = paste(path_Figures, "5. Hamstring Injury vs PL season minutes.jpeg", sep = "/"), 
-       plot = p_by_minutes, 
-       device = "jpeg", 
-       dpi = 1600, width = 6, height = 4.5)
+# ggsave(filename = paste(path_Figures, "5. Hamstring Injury vs PL season minutes.jpeg", sep = "/"), 
+#        plot = p_by_minutes, 
+#        device = "jpeg", 
+#        dpi = 1600, width = 6, height = 4.5)
 
 ## REMOVE: goalkeepers & missing position
 p_by_position1 <- hamstring_only %>%
@@ -258,7 +261,7 @@ p_by_position1 <- hamstring_only %>%
                          caption = "s_caption") +
                     story_theme()
 
-ggsave(filename = paste(path_Figures, "5a. Hamstring Injury vs Position.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "6a. Hamstring Injury vs Position.jpeg", sep = "/"), 
        plot = p_by_position1, 
        device = "jpeg", 
        dpi = 1600, width = 4, height = 4.5)
@@ -293,14 +296,18 @@ p_by_position2 <- hamstring_only %>%
                       story_theme()
 
 
-ggsave(filename = paste(path_Figures, "5b. Hamstring Injury vs Position.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "6b. Hamstring Injury vs Position.jpeg", sep = "/"), 
        plot = p_by_position2, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
 
 ##TODO: finalize formatting, grid
-#Note1 - Goalkeepers: very different dynamics, as shown by the Injury rate %
-#Note2 - Missing: don't trust that data very much
+
+hamstring_only <- hamstring_only %>%
+                    #Note1 - Goalkeepers: very different dynamics, as shown by the Injury rate %
+                    filter(Position != "Goalkeeper") %>%
+                    #Note2 - Missing: don't trust that data very much
+                    filter(Position != "")
 
 
 ##Visualize: Injury vs Minutes played in a given game - less time, less chance to get injured?
@@ -317,7 +324,7 @@ p_minutes_played <- hamstring_only %>%
                       f_breakdown_by_bins(s_title = "When hamstring injuries happen during the game",
                                           s_x = "`Minutes played`")
 
-ggsave(filename = paste(path_Figures, "5. Hamstring Injury vs Minutes played.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "7. Hamstring Injury vs Minutes played.jpeg", sep = "/"), 
        plot = p_minutes_played, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
@@ -325,7 +332,7 @@ ggsave(filename = paste(path_Figures, "5. Hamstring Injury vs Minutes played.jpe
 
 ##Visualize: Injury vs Age
 p_hamstring_vs_age <- hamstring_only %>%
-                        mutate(`Age (Years)` = cut(age_in_years, 
+                        mutate(`Age (Years)` = cut(`Age (Years)``, 
                                                    breaks = c(-Inf, 20, 22.5, 25, 27.5, 30, 32.5, 35, Inf), 
                                                    include.lowest = T)) %>%
                         group_by(`Age (Years)`) %>%
@@ -334,9 +341,10 @@ p_hamstring_vs_age <- hamstring_only %>%
                         ungroup() %>%
                         mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                         f_breakdown_by_bins(s_title = "Age vs Injury rates",
-                                            s_x = "`Age (Years)`")
+                                            s_x = "`Age (Years)`") +
+                        story_theme()
 
-ggsave(filename = paste(path_Figures, "6. Hamstring Injury vs Age.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "8. Hamstring Injury vs Age.jpeg", sep = "/"), 
        plot = p_hamstring_vs_age, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
@@ -353,9 +361,10 @@ p_hamstring_vs_weight <- hamstring_only %>%
                           ungroup() %>%
                           mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                           f_breakdown_by_bins(s_title = "Weight vs Injury rates",
-                                              s_x = "`Weight (kg)`")
+                                              s_x = "`Weight (kg)`") +
+                          story_theme()
 
-ggsave(filename = paste(path_Figures, "7. Hamstring Injury vs Weight.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "9. Hamstring Injury vs Weight.jpeg", sep = "/"), 
        plot = p_hamstring_vs_weight, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
@@ -372,16 +381,18 @@ p_hamstring_vs_height <- hamstring_only %>%
                           ungroup() %>%
                           mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                           f_breakdown_by_bins(s_title = "Height vs Injury rates",
-                                              s_x = "`Height (cm)`")
+                                              s_x = "`Height (cm)`") +
+                          story_theme()
 
-ggsave(filename = paste(path_Figures, "8. Hamstring Injury vs Height.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "10. Hamstring Injury vs Height.jpeg", sep = "/"), 
        plot = p_hamstring_vs_height, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
 
+
 ## BMI:
 p_hamstring_vs_bmi <- hamstring_only %>%
-                        mutate(BMI = cut(bmi, 
+                        mutate(BMI = cut(BMI, 
                                          breaks = c(-Inf, 20, 21, 22, 23, 24, 25, 26, 27, Inf), 
                                          include.lowest = T)) %>%
                         group_by(BMI) %>%
@@ -390,9 +401,10 @@ p_hamstring_vs_bmi <- hamstring_only %>%
                         ungroup() %>%
                         mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                         f_breakdown_by_bins(s_title = "BMI vs Injury rates",
-                                            s_x = "BMI")
+                                            s_x = "BMI") +
+                        story_theme()
 
-ggsave(filename = paste(path_Figures, "9. Hamstring Injury vs BMI.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "11. Hamstring Injury vs BMI.jpeg", sep = "/"), 
        plot = p_hamstring_vs_bmi, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
@@ -409,9 +421,10 @@ p_hamstring_vs_kickoff <- hamstring_only %>%
                             ungroup() %>%
                             mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                             f_breakdown_by_bins(s_title = "Kick-off time vs Injury rates",
-                                                s_x = "`Kick-off Hour`")
+                                                s_x = "`Kick-off Hour`") +
+                            story_theme()
 
-ggsave(filename = paste(path_Figures, "10. Hamstring Injury vs Kick-off time.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "12. Hamstring Injury vs Kick-off time.jpeg", sep = "/"), 
        plot = p_hamstring_vs_kickoff, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
@@ -419,7 +432,6 @@ ggsave(filename = paste(path_Figures, "10. Hamstring Injury vs Kick-off time.jpe
 
 ##By Year
 p_hamstring_vs_year <- hamstring_only %>%
-                        mutate(Year = year(Date)) %>%
                           group_by(Year) %>%
                           summarize(game_count = n(),
                                     injury_count = (sum(injury_type != 0))) %>%
@@ -427,21 +439,17 @@ p_hamstring_vs_year <- hamstring_only %>%
                           mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                           f_breakdown_by_bins(s_title = "Hamstring Injury vs Year",
                                               s_subtitle = "Number of games, injury rate by year",
-                                              s_x = "Year")
+                                              s_x = "Year") +
+                          story_theme()
 
-ggsave(filename = paste(path_Figures, "11. Hamstring Injury vs Year.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "13. Hamstring Injury vs Year.jpeg", sep = "/"), 
        plot = p_hamstring_vs_year, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
 
 
 ##By Month --> visualize by year as well
-
-
 p_hamstring_vs_month <- hamstring_only %>%
-                          mutate(Month_Num = month(Date)) %>%
-                          left_join(Month_mapping, by = "Month_Num") %>%
-                          mutate(Month = reorder(Month, Month_in_Season)) %>%
                           group_by(Month) %>%
                           summarize(game_count = n(),
                                     injury_count = (sum(injury_type != 0))) %>%
@@ -449,10 +457,11 @@ p_hamstring_vs_month <- hamstring_only %>%
                           mutate(injury_rate_pct = injury_count / game_count * 100) %>%
                           f_breakdown_by_bins(s_title = "Hamstring Injury vs Month",
                                               s_subtitle = "Number of games, injury rate by month",
-                                              s_x = "Month")
+                                              s_x = "Month") +
+                          story_theme()
 
 
-ggsave(filename = paste(path_Figures, "12. Hamstring Injury vs Month.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "14. Hamstring Injury vs Month.jpeg", sep = "/"), 
        plot = p_hamstring_vs_month, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
@@ -484,10 +493,11 @@ p_hamstring_vs_month_w_conf <- hamstring_only %>%
                                 technical_theme()
 
 
-ggsave(filename = paste(path_Figures, "12b. Hamstring Injury vs Month.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "14b. Hamstring Injury vs Month.jpeg", sep = "/"), 
        plot = p_hamstring_vs_month_w_conf, 
        device = "jpeg", 
        dpi = 1600, width = 6, height = 4.5)
+
 
 ## Breaken out by year -- NOT FINISHED
 hamstring_only %>%
@@ -504,12 +514,53 @@ hamstring_only %>%
                       s_subtitle = "Number of games, injury rate by month",
                       s_x = "Month")
 
+
+## By Venue
+p_hamstring_vs_venue <- hamstring_only %>%
+                          group_by(Venue) %>%
+                          summarize(game_count = n(),
+                                    injury_count = sum(injured)) %>%
+                          ungroup() %>%
+                          mutate(Venue = ifelse(game_count < 2500, "Other", Venue)) %>%
+                          mutate(Venue = reorder(Venue, -game_count)) %>%
+                          group_by(Venue) %>%
+                          summarize(game_count = sum(game_count),
+                                    injury_count = sum(injury_count),
+                                    injury_rate_pct = injury_count / game_count * 100) %>%
+                          ungroup() %>%
+                          f_breakdown_by_bins(s_title = "Hamstring Injury vs Venue",
+                                              s_subtitle = "Number of games, injury rate by Venue",
+                                              s_x = "Venue") +
+                          #coord_flip() +
+                          story_theme() +
+                          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##TODO: break-out by home vs away team
+
+ggsave(filename = paste(path_Figures, "15. Hamstring Injury vs Venue.jpeg", sep = "/"), 
+       plot = p_hamstring_vs_venue, 
+       device = "jpeg", 
+       dpi = 1600, width = 6, height = 4.5)
+
+
+##Group "small" venues into "Other":
+hamstring_only <- hamstring_only %>%
+                    group_by(Venue) %>%
+                    mutate(game_count = n()) %>%
+                    ungroup() %>%
+                    mutate(Venue = ifelse(game_count < 2500, "Other", Venue)) %>%
+                    select(-game_count)
+
+
+## TODO: by nationality (grouping!)
+## TODO: by team (grouping!)
+## TODO: Kick-off Grouping
+
+
 #######################################
 ## Comparison with categorical variables
 
 f_breakdown_by_variable(hamstring_only, "Position")
-##Note: Position is missing for a few records. Zero injuries. TODO: Investigate structure of missing data!
-##Goalkeepers getting injured a lot less.
 
 
 f_breakdown_by_variable(hamstring_only, "Foot")
@@ -523,37 +574,99 @@ f_breakdown_by_variable(hamstring_only, "Nationality")
 #### Fixing NAs & encode categicals
 
 #NAs:
+hamstring_only <- hamstring_only %>% 
+                    filter(Foot != "")
 
-hamstring_only <- hamstring_only %>%
-                    select(mid, pid, injured, Position, Foot, age_in_years, `Height (cm)`, `Weight (kg)`, bmi,
-                           Date, starts_with("all_"), starts_with("pl_"))
 
-hamstring_only <- hamstring_only %>% mutate(Position = ifelse(Position == "", "Missing", Position))
-hamstring_only <- hamstring_only %>% mutate(Foot     = ifelse(Foot     == "", "Missing", Foot))
+###################################
+####  Check for correlations
+## source: http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
+
+cormat <- hamstring_only %>% 
+            select(starts_with("all_mins_")) %>% ## starts_with("pl_"), 
+            cor() %>%
+            round(2)
+
+# Reorder the correlation matrix
+cormat <- f_reorder_cormat(cormat)
+upper_tri <- f_get_upper_tri(cormat)
+
+# Melt the correlation matrix
+melted_cormat <- melt(upper_tri, na.rm = TRUE)
+
+# Create a ggheatmap
+p_correl <- ggplot(melted_cormat, aes(Var2, Var1, fill = value))+
+              geom_tile(color = "white")+
+              scale_fill_gradient2(low = "white", high = "firebrick", limit = c(0,1), space = "Lab", 
+                                   name="Pearson\nCorrelation") +
+              coord_fixed() +
+              geom_text(aes(Var2, Var1, label = value), color = "black", size = 4) +
+              technical_theme()+ # minimal theme
+              theme(axis.text.x = element_text(angle = 45, vjust = 1, size = 12, hjust = 1))+
+              theme(
+                axis.title.x = element_blank(),
+                axis.title.y = element_blank(),
+                panel.grid.major = element_blank(),
+                panel.border = element_blank(),
+                panel.background = element_blank(),
+                axis.ticks = element_blank(),
+                legend.justification = c(1, 0),
+                legend.position = c(0.6, 0.7),
+                legend.direction = "horizontal")+
+                guides(fill = guide_colorbar(barwidth = 7, barheight = 1, title.position = "top", title.hjust = 0.5))
+
+ggsave(filename = paste(path_Figures, "16. Correlation Matrix.jpeg", sep = "/"), 
+       plot = p_correl, 
+       device = "jpeg", 
+       dpi = 1600, width = 6, height = 6)
+
+
+## For now, keep only these variables:
+save_for_modeling <- hamstring_only %>% 
+                      select(mid, 
+                             pid,
+                             injured, 
+                             `Kick-off`,              
+                             Venue,
+                             all_mins_season,                  
+                             all_mins_14,        
+                             all_mins_4,         
+                             Foot,          
+                             Position,
+                             `Age (Years)`,          
+                             Month,        
+                             `Height (cm)`,           
+                             `Weight (kg)`,
+                             BMI)
 
 ## Encode categoricals:
-position_encoded <- hamstring_only %>%
+position_encoded <- save_for_modeling %>%
                       select(mid, pid, Position) %>%
                       mutate(Position = paste("Position", Position, sep = "_")) %>%
-                      mutate(i = 1) %>% tidyr::spread(key = Position, value = i, fill = 0) %>%
-                      select(-Position_Goalkeeper) # assigning Goalkeeper as the "base value" for position
+                      mutate(i = 1) %>% tidyr::spread(key = Position, value = i, fill = 0)
 
-foot_encoded     <- hamstring_only %>%
+foot_encoded     <- save_for_modeling %>%
                       select(mid, pid, Foot) %>%
                       mutate(Foot = paste("Foot", Foot, sep = "_")) %>%
-                      mutate(i = 1) %>% tidyr::spread(key = Foot, value = i, fill = 0) %>%
-                      select(-Foot_Right) # assigning Right as the "base value" for Foot
+                      mutate(i = 1) %>% tidyr::spread(key = Foot, value = i, fill = 0)
 
-hamstring_only <- hamstring_only %>%
-                    select(-Position, -Foot) %>%
-                    left_join(position_encoded, by = c("mid", "pid")) %>%
-                    left_join(foot_encoded,     by = c("mid", "pid"))
+kickoff_encoded  <- save_for_modeling %>%
+                      select(mid, pid, `Kick-off`) %>%
+                      mutate(`Kick-off` = paste("Kick-off", `Kick-off`, sep = "_")) %>%
+                      mutate(i = 1) %>% tidyr::spread(key = `Kick-off`, value = i, fill = 0)
+
+save_for_modeling <- save_for_modeling %>%
+                      select(-Position, -Foot) %>%
+                      left_join(position_encoded, by = c("mid", "pid")) %>%
+                      left_join(foot_encoded,     by = c("mid", "pid")) %>%
+                      left_join(kickoff_encoded,  by = c("mid", "pid"))
 
 rm(position_encoded)
 rm(foot_encoded)
+rm(kickoff_encoded)
 
+View(save_for_modeling)
 
-## Games/minutes fields are populated with NAs for 25 rows:
-## why is this data missing?
-hamstring_only <- hamstring_only %>%
-                    filter(!is.na(all_games_season) &  !is.na(pl_games_season))
+## save data for modeling
+saveRDS(object = save_for_modeling, file = paste(path_Data, "for_modeling.RDS", sep = "/"))
+#test <- readRDS("for_modeling.RDS")
