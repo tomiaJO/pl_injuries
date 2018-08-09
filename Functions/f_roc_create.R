@@ -1,4 +1,4 @@
-fun_roc_create <- function(prediction_probs, truth, AUC= NULL, model= NULL) {
+f_roc_create <- function(prediction_probs, truth, AUC= NULL, model= NULL) {
   
   min_prob <- min(prediction_probs$Yes)
   max_prob <- max(prediction_probs$Yes)
@@ -17,7 +17,7 @@ fun_roc_create <- function(prediction_probs, truth, AUC= NULL, model= NULL) {
     false_positive_rates[ix] <- cm[1, 2] / (cm[1, 2] + cm[2, 2])
   }
   
-  manual_roc <- data.table("threshold" = thresholds,
+  manual_roc <- data.frame("threshold" = thresholds,
                            "true_positive_rate" = true_positive_rates,
                            "false_positive_rate" = false_positive_rates)
   
