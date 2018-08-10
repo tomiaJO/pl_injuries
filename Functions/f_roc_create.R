@@ -1,32 +1,41 @@
-f_roc_create <- function(prediction_probs, truth, AUC= NULL, model= NULL) {
+f_roc_create <- function(pp, truth) {
   
-  min_prob <- min(prediction_probs$Yes)
-  max_prob <- max(prediction_probs$Yes)
+  min_prob <- min(pp)
+  max_prob <- max(pp)
   
   thresholds <- seq(0, max_prob, by = (max_prob - min_prob) / 100)
   
-  true_positive_rates <- rep(0, length(thresholds))
-  false_positive_rates <- rep(0, length(thresholds))
+  tpr <- rep(0, length(thresholds))
+  fpr <- rep(0, length(thresholds))
   
-  for (ix in 1:length(thresholds)) {
-    thr <- thresholds[ix]
-    test_prediction <- ifelse(prediction_probs$Yes > thr, "Yes", "No")
-    test_prediction <- factor(test_prediction, levels = c("Yes", "No"))
-    cm <- as.matrix(confusionMatrix(data = test_prediction, reference = truth))
-    true_positive_rates[ix] <- cm[1, 1] / (cm[1, 1] + cm[2, 1])
-    false_positive_rates[ix] <- cm[1, 2] / (cm[1, 2] + cm[2, 2])
+  manual_roc <- vector(mode = "list", length = length(pp))
+  
+  for (col in 1:length(pp)) {
+    for (ix in 1:length(thresholds)) {
+      
+      pred <- ifelse(pp[, names(pp)[col]] > thresholds[ix], "Yes", "No")
+      pred <- factor(pred, levels = c("Yes", "No"))
+      
+      cm <- as.matrix(confusionMatrix(data = pred, reference = data_test$injured))
+      
+      tpr[ix] <- cm[1, 1] / (cm[1, 1] + cm[2, 1])
+      fpr[ix] <- cm[1, 2] / (cm[1, 2] + cm[2, 2])
+    }
+    
+    manual_roc[[col]] <- data.frame("Model"     = names(pp)[col],
+                                    "Threshold" = thresholds,
+                                    "TPR"       = tpr,
+                                    "FPR"       = fpr)
   }
   
-  manual_roc <- data.frame("threshold" = thresholds,
-                           "true_positive_rate" = true_positive_rates,
-                           "false_positive_rate" = false_positive_rates)
+  manual_roc <- do.call("rbind", manual_roc)
   
-  s_title <- ifelse(is.null(model), "", paste("ROC curve for Model:", model, sep = " "))
-  s_subtitle <- ifelse(is.null(AUC), "", paste("AUC =", round(AUC, 2), sep = " "))
   
-  ggplot(data = manual_roc, 
-         aes(x = false_positive_rate, y = true_positive_rate, color = threshold)) +
-    geom_point() +
+  ggplot(data = manual_roc, aes(x = FPR, y = TPR)) +
+    geom_line(aes(color = Model), size = 1.25) +
     geom_abline(intercept = 0, slope = 1,  linetype = "dotted", col = "black") +
-    labs(title = s_title, subtitle = s_subtitle)
+    labs(title = "ROC curve",
+         x     = "FPR",
+         y     = "TPR") +
+    theme_minimal()
 }
