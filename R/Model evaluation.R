@@ -31,6 +31,12 @@ m_glmnet_down  <- readRDS(file = paste(path_Models, "m_glmnet_down.RDS",  sep = 
 ## RF
 m_rf_down      <- readRDS(file = paste(path_Models, "m_rf_down.RDS",      sep = "/"))
 
+## GBM --> 3.5 hours
+#m_gbm_down     <- readRDS(file = paste(path_Models, "m_gbm_down.RDS",     sep = "/"))
+
+## XGBOOST
+m_xgboost_down  <- readRDS(file = paste(path_Models, "m_xgboost_down.RDS", sep = "/"))
+
 
 #####################################
 ## MODEL PERFORMANCE
@@ -38,7 +44,8 @@ m_rf_down      <- readRDS(file = paste(path_Models, "m_rf_down.RDS",      sep = 
 ## Resampling
 model_list <- list("GLM"           = m_glm_down,
                    "GLMNet"        = m_glmnet_down,
-                   "Random Forest" = m_rf_down)
+                   "Random Forest" = m_rf_down,
+                   "XGBOOST"       = m_xgboost_down)
 
 resamples_object <- resamples(model_list)
 
@@ -50,12 +57,12 @@ p_resampling <- resamples_object$values %>%
                           mutate(metric = factor(metric,
                                                  levels = c("ROC",       "Sens",              "Spec"),
                                                  labels = c("AUC (ROC)", "Sensitivity (TPR)", "Specificy (TNR)"))) %>%
-                          mutate(model = factor(model, levels = c("GLM", "GLMNet", "Random Forest"))) %>%
+                          mutate(model = factor(model, levels = names(model_list))) %>%
                           ggplot(aes(x = model, y = Value, fill = model)) +
                           geom_boxplot() +
                           facet_wrap(~metric, ncol = 1) +
                           labs(title    = "Comparison of model performances",
-                               subtitle = "GLMNet, Random Forest, RPart",
+                               subtitle = "GLM, GLMNet, Random Forest, XGBoost",
                                x        = "Model",
                                y        = "",
                                caption  = "Note: Results are based on 50 resamples of training data") +

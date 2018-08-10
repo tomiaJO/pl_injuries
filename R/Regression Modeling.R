@@ -15,7 +15,7 @@ source("GlobalVariables.R")
 
 
 ## set parallel processing
-cl <- makePSOCKcluster(2)
+cl <- makePSOCKcluster(3)
 registerDoParallel(cl)
 
 
@@ -96,37 +96,58 @@ ctrl$sampling = "down"
 # rm(m_glm_down)
 
 ## GLMNET, lasso & ridge
-set.seed(93)
-m_glmnet_down <- train(injured ~ .,
-                       data       = data_train,
-                       method     = "glmnet",
-                       family     = "binomial",
-                       metric     = "ROC",
-                       trControl  = ctrl,
-                       preProcess = c("center", "scale"),
-                       tuneLength = 10)
-
-saveRDS(object = m_glmnet_down, file = paste(path_Models, "m_glmnet_down.RDS", sep = "/"))
-rm(m_glmnet_down)
+# set.seed(93)
+# m_glmnet_down <- train(injured ~ .,
+#                        data       = data_train,
+#                        method     = "glmnet",
+#                        family     = "binomial",
+#                        metric     = "ROC",
+#                        trControl  = ctrl,
+#                        preProcess = c("center", "scale"),
+#                        tuneLength = 10)
+# 
+# saveRDS(object = m_glmnet_down, file = paste(path_Models, "m_glmnet_down.RDS", sep = "/"))
+# rm(m_glmnet_down)
 
 
 ## RF
-tg_rf <- data.frame(mtry = c(2:7))
+# tg_rf <- data.frame(mtry = c(2:7))
+# 
+# set.seed(93)
+# m_rf_down <- train(x = data_train[, names(data_train) != "injured"],
+#                        y = data_train$injured,
+#                        method     = "rf",
+#                        metric     = "ROC",
+#                        trControl  = ctrl,
+#                        preProcess = c("center", "scale"),
+#                        tuneGrid   = tg_rf,
+#                        ntree      = 500,
+#                        importance = T)
+# 
+# saveRDS(object = m_rf_down, file = paste(path_Models, "m_rf_down.RDS", sep = "/"))
+# rm(m_rf_down)
+
+
+## XGBOOST
+ctrl$verboseIter = T
+tg_xgb <- expand.grid(nrounds = 250, 
+                      max_depth = c(2:5),
+                      eta = c(0.01, 0.05), 
+                      gamma = 0,
+                      colsample_bytree = c(.25, .5, .75), 
+                      min_child_weight = 1, 
+                      subsample = c(.25, .5, .75))
 
 set.seed(93)
-m_rf_down <- train(x = data_train[, names(data_train) != "injured"],
-                       y = data_train$injured,
-                       method     = "rf",
-                       metric     = "ROC",
-                       trControl  = ctrl,
-                       preProcess = c("center", "scale"),
-                       tuneGrid   = tg_rf,
-                       ntree      = 500,
-                       importance = T)
+m_xgboost_down <- train(injured ~ .,
+                    method = "xgbTree",
+                    metric = "ROC",
+                    data = data_train,
+                    trControl = ctrl,
+                    tuneGrid = tg_xgb)
 
-saveRDS(object = m_rf_down, file = paste(path_Models, "m_rf_down.RDS", sep = "/"))
-rm(m_rf_down)
-
+saveRDS(object = m_xgboost_down, file = paste(path_Models, "m_xgboost_down.RDS", sep = "/"))
+rm(m_xgboost_down)
 
 ######################################################
 ## UP-SAMPLING
