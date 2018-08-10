@@ -14,7 +14,7 @@ source("GlobalVariables.R")
 
 
 ## Set saving of figures
-save_plots <- FALSE
+save_plots <- TRUE
 
 
 ## Import EDA functions
@@ -25,7 +25,7 @@ source(paste(path_Functions, "f_calculate_ci.R",          sep = "/"))
 source(paste(path_Functions, "f_breakdown_w_ci.R",        sep = "/"))
 source(paste(path_Functions, "f_conditional_ggsave.R",    sep = "/"))
 source(paste(path_Functions, "f_plot_ir.R",               sep = "/"))
-source(paste(path_Functions, "f_save_plots.R",               sep = "/"))
+source(paste(path_Functions, "f_save_plots.R",            sep = "/"))
 
 ## Import ggplot themes
 source(paste(path_Functions, "ggplot_themes.R",           sep = "/"))
