@@ -1,8 +1,8 @@
 ##SETUP
-library(caret)
-library(DMwR) ## used for SMOTE
+require(caret)
+require(DMwR) ## used for SMOTE
 ## library(ROSE) --> rose not working right now..
-library(doParallel)
+require(doParallel)
 
 
 #cleanup environment
@@ -15,8 +15,8 @@ source("GlobalVariables.R")
 
 
 ## set parallel processing
-cl <- makePSOCKcluster(3)
-registerDoParallel(cl)
+# cl <- makePSOCKcluster(2)
+# registerDoParallel(cl)
 
 
 ## Read in prepared training & test sets
@@ -30,21 +30,21 @@ ctrl <- trainControl(method = "repeatedcv",
                      summaryFunction = twoClassSummary)
 
 
-start_time <- Sys.time()
+Sys.time()
 ######################################################
 ## NO SUB-SAMPLING
 ## GLM, no regularization
-# set.seed(93)
-# m_glm_no <- train(injured ~ .,
-#                   data      = data_train,
-#                   method    = "glm",
-#                   family    = "binomial",
-#                   metric    = "ROC",
-#                   trControl = ctrl)
-# 
-# saveRDS(object = m_glm_no, file = paste(path_Models, "m_glm_no.RDS", sep = "/"))
-# rm(m_glm_no)
+set.seed(93)
+m_glm_no <- train(injured ~ .,
+                  data      = data_train,
+                  method    = "glm",
+                  family    = "binomial",
+                  metric    = "ROC",
+                  trControl = ctrl)
 
+saveRDS(object = m_glm_no, file = paste(path_Models, "m_glm_no.RDS", sep = "/"))
+rm(m_glm_no)
+Sys.time()
 
 ## GLMNET, lasso & ridge
 # set.seed(93)
@@ -59,6 +59,7 @@ start_time <- Sys.time()
 # 
 # saveRDS(object = m_glmnet_no, file = paste(path_Models, "m_glmnet_no.RDS", sep = "/"))
 # rm(m_glmnet_no)
+# Sys.time()
 
 
 ## RF
@@ -77,6 +78,7 @@ start_time <- Sys.time()
 # 
 # saveRDS(object = m_rf_no, file = paste(path_Models, "m_rf_no.RDS", sep = "/"))
 # rm(m_rf_no)
+# Sys.time()
 
 
 ######################################################
@@ -84,16 +86,18 @@ start_time <- Sys.time()
 ## GLM, no regularization
 ctrl$sampling = "down"
 
-# set.seed(93)
-# m_glm_down <- train(injured ~ .,
-#                     data      = data_train,
-#                     method    = "glm",
-#                     family    = "binomial",
-#                     metric    = "ROC",
-#                     trControl = ctrl)
-# 
-# saveRDS(object = m_glm_down, file = paste(path_Models, "m_glm_down.RDS", sep = "/"))
-# rm(m_glm_down)
+set.seed(93)
+m_glm_down <- train(injured ~ .,
+                    data      = data_train,
+                    method    = "glm",
+                    family    = "binomial",
+                    metric    = "ROC",
+                    trControl = ctrl)
+
+saveRDS(object = m_glm_down, file = paste(path_Models, "m_glm_down.RDS", sep = "/"))
+rm(m_glm_down)
+Sys.time()
+
 
 ## GLMNET, lasso & ridge
 # set.seed(93)
@@ -108,6 +112,7 @@ ctrl$sampling = "down"
 # 
 # saveRDS(object = m_glmnet_down, file = paste(path_Models, "m_glmnet_down.RDS", sep = "/"))
 # rm(m_glmnet_down)
+# Sys.time()
 
 
 ## RF
@@ -126,44 +131,47 @@ ctrl$sampling = "down"
 # 
 # saveRDS(object = m_rf_down, file = paste(path_Models, "m_rf_down.RDS", sep = "/"))
 # rm(m_rf_down)
+# Sys.time()
 
 
 ## XGBOOST
-ctrl$verboseIter = T
-tg_xgb <- expand.grid(nrounds = 250, 
-                      max_depth = c(2:5),
-                      eta = c(0.01, 0.05), 
-                      gamma = 0,
-                      colsample_bytree = c(.25, .5, .75), 
-                      min_child_weight = 1, 
-                      subsample = c(.25, .5, .75))
-
-set.seed(93)
-m_xgboost_down <- train(injured ~ .,
-                    method = "xgbTree",
-                    metric = "ROC",
-                    data = data_train,
-                    trControl = ctrl,
-                    tuneGrid = tg_xgb)
-
-saveRDS(object = m_xgboost_down, file = paste(path_Models, "m_xgboost_down.RDS", sep = "/"))
-rm(m_xgboost_down)
+# ctrl$verboseIter = T
+# tg_xgb <- expand.grid(nrounds = 250, 
+#                       max_depth = c(2:5),
+#                       eta = c(0.01, 0.05), 
+#                       gamma = 0,
+#                       colsample_bytree = c(.25, .5, .75), 
+#                       min_child_weight = 1, 
+#                       subsample = c(.25, .5, .75))
+# 
+# set.seed(93)
+# m_xgboost_down <- train(injured ~ .,
+#                     method = "xgbTree",
+#                     metric = "ROC",
+#                     data = data_train,
+#                     trControl = ctrl,
+#                     tuneGrid = tg_xgb)
+# 
+# saveRDS(object = m_xgboost_down, file = paste(path_Models, "m_xgboost_down.RDS", sep = "/"))
+# rm(m_xgboost_down)
+# Sys.time()
 
 ######################################################
 ## UP-SAMPLING
 ## GLM, no regularization
-# ctrl$sampling = "up"
-# 
-# set.seed(93)
-# m_glm_up <- train(injured ~ .,
-#                   data      = data_train,
-#                   method    = "glm",
-#                   family    = "binomial",
-#                   metric    = "ROC",
-#                   trControl = ctrl)
-# 
-# saveRDS(object = m_glm_up, file = paste(path_Models, "m_glm_up.RDS", sep = "/"))
-# rm(m_glm_up)
+ctrl$sampling = "up"
+
+set.seed(93)
+m_glm_up <- train(injured ~ .,
+                  data      = data_train,
+                  method    = "glm",
+                  family    = "binomial",
+                  metric    = "ROC",
+                  trControl = ctrl)
+
+saveRDS(object = m_glm_up, file = paste(path_Models, "m_glm_up.RDS", sep = "/"))
+rm(m_glm_up)
+Sys.time()
 
 
 ## GLMNET, lasso & ridge
@@ -179,6 +187,7 @@ rm(m_xgboost_down)
 # 
 # saveRDS(object = m_glmnet_up, file = paste(path_Models, "m_glmnet_up.RDS", sep = "/"))
 # rm(m_glmnet_up)
+# Sys.time()
 
 
 ## RF
@@ -197,23 +206,25 @@ rm(m_xgboost_down)
 # 
 # saveRDS(object = m_rf_up, file = paste(path_Models, "m_rf_up.RDS", sep = "/"))
 # rm(m_rf_up)
+# Sys.time()
 
 
 ######################################################
 ## SMOTE
 ## GLM, no regularization
-# ctrl$sampling = "smote"
-# 
-# set.seed(93)
-# m_glm_smote <- train(injured ~ .,
-#                      data      = data_train,
-#                      method    = "glm",
-#                      family    = "binomial",
-#                      metric    = "ROC",
-#                      trControl = ctrl)
-# 
-# saveRDS(object = m_glm_smote, file = paste(path_Models, "m_glm_smote.RDS", sep = "/"))
-# rm(m_glm_smote)
+ctrl$sampling = "smote"
+
+set.seed(93)
+m_glm_smote <- train(injured ~ .,
+                     data      = data_train,
+                     method    = "glm",
+                     family    = "binomial",
+                     metric    = "ROC",
+                     trControl = ctrl)
+
+saveRDS(object = m_glm_smote, file = paste(path_Models, "m_glm_smote.RDS", sep = "/"))
+rm(m_glm_smote)
+Sys.time()
 
 
 ## GLMNET, lasso & ridge
@@ -229,6 +240,7 @@ rm(m_xgboost_down)
 # 
 # saveRDS(object = m_glmnet_smote, file = paste(path_Models, "m_glmnet_smote.RDS", sep = "/"))
 # rm(m_glmnet_smote)
+# Sys.time()
 
 
 ## RF
@@ -247,9 +259,10 @@ rm(m_xgboost_down)
 # 
 # saveRDS(object = m_rf_smote, file = paste(path_Models, "m_rf_smote.RDS", sep = "/"))
 # rm(m_rf_smote)
+# Sys.time()
 
 
-end_time <- Sys.time()
+Sys.time()
 stopCluster(cl)
 
 

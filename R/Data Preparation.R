@@ -14,7 +14,7 @@ source("GlobalVariables.R")
 
 
 ## Set saving of figures
-save_plots <- TRUE
+save_plots <- T
 
 
 ## Import EDA functions
@@ -31,7 +31,8 @@ source(paste(path_Functions, "f_save_plots.R",            sep = "/"))
 source(paste(path_Functions, "ggplot_themes.R",           sep = "/"))
 
 ## Load data
-injuries <- fread(paste(path_RawData, "injury_data_pg.csv", sep = "/"))
+injuries          <- fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
+country_to_region <- fread(paste(path_Data,    "country_to_region.csv",  sep = "/"))
 
 
 ## Formatting clean-up for date variables
@@ -161,35 +162,48 @@ f_conditional_ggsave(save = save_plots,
                      h = 4.5)
 
 ## Hamstring zoom:
-injuries %>%
-  #filter(injury_type == "Hamstring") %>%
-  filter(injury_type %in% c("Hamstring", "Groin Strain", "Calf Muscle Strain", "Thigh Muscle Strain")) %>%
-  filter(injury_length > 1) %>%
-  summarize(median_injury_length = median(injury_length)) 
+tmp <- injuries %>%
+        #filter(injury_type == "Hamstring") %>%
+        filter(injury_type %in% c("Hamstring", "Groin Strain", "Calf Muscle Strain", "Thigh Muscle Strain")) %>%
+        summarize(median_injury_length = median(injury_length),
+                  perc95_injury_length = quantile(injury_length, .95))
 
-injuries %>%
-  #filter(injury_type == "Hamstring") %>%
-  filter(injury_type %in% c("Hamstring", "Groin Strain", "Calf Muscle Strain", "Thigh Muscle Strain")) %>%
-  filter(injury_length > 1) %>%
-  summarize(perc99_injury_length = quantile(injury_length, .95)) 
+median_injury_length <- tmp %>% pull(median_injury_length)
+perc95_injury_length <- tmp %>% pull(perc95_injury_length)
 
 p_hamstring_lenghts <- injuries %>%
                         #filter(injury_type == "Hamstring") %>%
                         filter(injury_type %in% c("Hamstring", "Groin Strain", "Calf Muscle Strain", "Thigh Muscle Strain")) %>%
-                        filter(injury_length > 1) %>% #should miss at least 1 day
                         mutate(injury_length_capped_180 = ifelse(injury_length >= 180, 180, injury_length)) %>% 
                         ggplot(aes(x = injury_length_capped_180)) +
-                        geom_density(fill = "steelblue2") +
+                        geom_density(fill = "steelblue2", color = "steelblue2")
+
+## add highlight
+d <- ggplot_build(p_hamstring_lenghts)$data[[1]]
+
+p_hamstring_lenghts <- p_hamstring_lenghts +
+                        geom_area(data = subset(d, x < 7), 
+                                  aes(x = x, y = y), 
+                                  fill = "darksalmon", color = "darksalmon")
+
+## add median / .95 perc lines
+p_hamstring_lenghts <- p_hamstring_lenghts +
                         geom_vline(xintercept = 18, color = "firebrick") +
-                        geom_text(aes(x = 18, y = 0.03), label = "Median: 18 days", hjust = -0.1, vjust = 0, color = "firebrick") +
-                        geom_vline(xintercept = 78, color = "firebrick") +
-                        geom_text(aes(x = 78, y = 0.02), label = ".95 percentile: 78 days", hjust = -0.1, vjust = 0, color = "firebrick") +
+                          geom_text(aes(x = median_injury_length, y = 0.03), 
+                                    label = paste("Median:",  median_injury_length, "days", sep = " "), 
+                                    hjust = -0.1, vjust = 0, color = "firebrick") +
+                          geom_vline(xintercept = 78, color = "firebrick") +
+                          geom_text(aes(x = perc95_injury_length, y = 0.02), 
+                                    label = paste(".95 percentile:",  perc95_injury_length, "days", sep = " "), 
+                                    hjust = -0.1, vjust = 0, color = "firebrick")
+
+## formatting
+p_hamstring_lenghts <- p_hamstring_lenghts +
                         labs(title    = "Typical injuries last 1 to 11 weeks",
                              subtitle = "Density plot, Length of injuries",
                              x        = "Injury Length (days)",
                              y        = "Density",
                              caption  = "Note: Injury length was capped at 180 days") + 
-                        theme_minimal() +
                         theme(legend.position = "bottom") +
                         story_theme()
 
@@ -202,16 +216,21 @@ f_conditional_ggsave(save = save_plots,
 
 ##Keep only hamstring
 injuries <- injuries %>% 
-                    filter(injury_type %in% c("0", 
-                                              "Hamstring", 
-                                              "Groin Strain", 
-                                              "Calf Muscle Strain", 
-                                              "Thigh Muscle Strain"))
+              filter(injury_type %in% c("0", 
+                                        "Hamstring", 
+                                        "Groin Strain", 
+                                        "Calf Muscle Strain", 
+                                        "Thigh Muscle Strain")) %>%
+              mutate(injury_type = factor(injury_type, levels = c("0", 
+                                                                  "Hamstring", 
+                                                                  "Groin Strain", 
+                                                                  "Calf Muscle Strain", 
+                                                                  "Thigh Muscle Strain")))
 
 
 ##Keep only injuries with "significant" missed time
 injuries <- injuries %>%
-                    filter(injury_type == "0" | injury_length >= 7)
+              filter(injury_type == "0" | injury_length >= 14)
 
 
 ## REMOVE: minimal playing time
@@ -266,7 +285,7 @@ p_by_minutes <- p_by_minutes +
                        caption = "s_caption") +
                   story_theme()
 
-f_conditional_ggsave(save = save_plots, 
+f_conditional_ggsave(save = F, #save_plots, 
                      p = p_by_minutes, 
                      filepath = paste(path_Figures, "5. Hamstring Injury vs PL season minutes.jpeg", sep = "/"), 
                      w = 6, 
@@ -364,10 +383,9 @@ p_hamstring_vs_weight <- injuries %>%
                                                      breaks = c(-Inf, 60, 65, 70, 75, 80, 85, 90, Inf), 
                                                      include.lowest = T)) %>%
                           f_plot_ir(s_x     = "`Weight (kg)`", 
-                                    s_title = "Hamstring Injury vs Weight")
+                                    s_title = "Injury rate vs Weight")
 
 f_save_plots(save_plots, p_hamstring_vs_weight, "9", "Injury rate vs Weight", 6, 4.5)
-
 
 ## By Height:
 p_hamstring_vs_height <- injuries %>%
@@ -442,7 +460,7 @@ p_hamstring_vs_venue <- injuries %>%
                           mutate(Venue = reorder(Venue, -game_count)) %>%
                           f_plot_ir(s_x        = "Venue", 
                                     s_facet    = "home",
-                                    s_title    = "Hamstring Injury vs Venue",
+                                    s_title    = "Injury rate vs Venue",
                                     s_subtitle = "Split by Home/Away")
 
 f_save_plots(save_plots, p_hamstring_vs_venue, "16", "Injury rate vs Venue", 4, 6)
@@ -457,7 +475,38 @@ injuries <- injuries %>%
               select(-game_count)
 
 
-## TODO: by nationality (grouping!)
+## By nationality (grouped)
+injuries <- injuries %>%
+              mutate(Nationality = ifelse(Nationality == "", "Missing", Nationality)) %>%
+              left_join(country_to_region, by = c("Nationality" = "Country")) %>%
+              rename("Region - Nationality" = "Region") %>%
+              mutate(`Region - Nationality` = factor(`Region - Nationality`, 
+                                                     levels = c("UK", "Western Europe",
+                                                                "Eastern Europe", "Americas",
+                                                                "Africa & Middle East", "Asia")))
+  
+p_hamstring_vs_nationality <- injuries %>%
+                                f_plot_ir(s_x = "`Region - Nationality`",
+                                          s_title = "Injury rate vs Nationality (Regionalized)")
+
+f_save_plots(save_plots, p_hamstring_vs_nationality, "17", "Injury rate vs Nationality (Regionalized)", 6, 4)
+
+## By country of birth
+injuries <- injuries %>%
+              mutate(`Country of birth` = ifelse(`Country of birth` == "", "Missing", `Country of birth`)) %>%
+              left_join(country_to_region, by = c("Country of birth" = "Country")) %>%
+              rename("Region - Birth" = "Region") %>%
+              mutate(`Region - Birth` = factor(`Region - Birth`, 
+                                                     levels = c("UK", "Western Europe",
+                                                                "Eastern Europe", "Americas",
+                                                                "Africa & Middle East", "Asia")))
+
+p_hamstring_vs_birth_country <- injuries %>%
+                                  f_plot_ir(s_x = "`Region - Birth`",
+                                            s_title = "Injury rate vs Birth Country (Regionalized)")
+
+f_save_plots(save_plots, p_hamstring_vs_birth_country, "18", "Injury rate vs Birth Country (Regionalized)", 6, 4)
+
 ## TODO: by team (grouping!)
 
 #######################################
@@ -471,7 +520,7 @@ p_hamstring_vs_pl_games_season <- injuries %>%
                                     f_plot_ir(s_x     = "pl_games_season", 
                                               s_title = "Injury rate vs PL Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_pl_games_season, "17", "Injury rate vs PL Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_pl_games_season, "21", "Injury rate vs PL Games in Season", 6, 4.5)
 
 
 ## All Games in Season
@@ -482,7 +531,7 @@ p_hamstring_vs_all_games_season <- injuries %>%
                                     f_plot_ir(s_x     = "all_games_season", 
                                               s_title = "Injury rate vs All Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_all_games_season, "18", "Injury rate vs All Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_all_games_season, "22", "Injury rate vs All Games in Season", 6, 4.5)
 
 ## CREATE non-PL variables
 injuries <- injuries %>%
@@ -503,7 +552,7 @@ p_hamstring_vs_nonpl_games_season <- injuries %>%
                                       f_plot_ir(s_x     = "non_pl_games_season", 
                                                 s_title = "Injury rate vs Non-PL Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_nonpl_games_season, "19", "Injury rate vs Non-PL Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_nonpl_games_season, "23", "Injury rate vs Non-PL Games in Season", 6, 4.5)
                                       
 
 #######################################
@@ -517,7 +566,8 @@ f_breakdown_by_variable(injuries, "Foot")
 
 ##TODO: create some groups based on country of birth / nationality ?
 f_breakdown_by_variable(injuries, "Nationality")
-
+injuries %>%
+  count(Nationality, sort = T)
 
 ###################################
 #### Fixing NAs & encode categicals
@@ -532,7 +582,8 @@ original_sample <- injuries %>%
                       select(mid, 
                              pid,
                              Year,
-                             injured, 
+                             injured,
+                             injury_length,
                              `Kick-off`,              
                              Venue,
                              home,
@@ -541,6 +592,8 @@ original_sample <- injuries %>%
                              starts_with("non_pl_"),
                              Foot,          
                              Position,
+                             `Region - Nationality`,
+                             `Region - Birth`,
                              `Age (Years)`,          
                              Month,
                              Weekday,
@@ -580,14 +633,32 @@ venue_encoded    <- original_sample %>%
                       mutate(Venue = paste("Venue", Venue, sep = "_")) %>%
                       mutate(i = 1) %>% tidyr::spread(key = Venue, value = i, fill = 0)
 
+nation_encoded   <- original_sample %>%
+                        select(mid, pid, `Region - Nationality`) %>%
+                        mutate(`Region - Nationality` = paste("Nationality", `Region - Nationality`, sep = "_")) %>%
+                        mutate(i = 1) %>% tidyr::spread(key = `Region - Nationality`, value = i, fill = 0)
+
+birth_encoded    <- original_sample %>%
+                      select(mid, pid, `Region - Birth`) %>%
+                      mutate(`Region - Birth` = paste("Birth", `Region - Birth`, sep = "_")) %>%
+                      mutate(i = 1) %>% tidyr::spread(key = `Region - Birth`, value = i, fill = 0)
+
+## remove original encoding
 original_sample <- original_sample %>%
-                      select(-Position, -Foot, -`Kick-off`, -Month, -Venue) %>%
+                      select(-Position, -Foot, -`Kick-off`, -Month, -Venue, 
+                             -`Region - Nationality`, -`Region - Birth`) 
+
+## add dummy versions
+original_sample <- original_sample %>%
                       left_join(position_encoded, by = c("mid", "pid")) %>%
                       left_join(foot_encoded,     by = c("mid", "pid")) %>%
                       left_join(kickoff_encoded,  by = c("mid", "pid")) %>%
                       left_join(month_encoded,    by = c("mid", "pid")) %>%
                       left_join(venue_encoded,    by = c("mid", "pid")) %>%
-                      left_join(weekday_encoded,  by = c("mid", "pid"))
+                      left_join(weekday_encoded,  by = c("mid", "pid")) %>%
+                      left_join(nation_encoded,   by = c("mid", "pid")) %>%
+                      left_join(birth_encoded,    by = c("mid", "pid"))
+
 
 rm(position_encoded)
 rm(foot_encoded)
@@ -595,6 +666,8 @@ rm(kickoff_encoded)
 rm(month_encoded)
 rm(venue_encoded)
 rm(weekday_encoded)
+rm(nation_encoded)
+rm(birth_encoded)
 
 ## save data for modeling
 saveRDS(object = original_sample, file = paste(path_Data, "original_sample.RDS", sep = "/"))

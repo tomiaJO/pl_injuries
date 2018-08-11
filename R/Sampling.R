@@ -1,6 +1,6 @@
 ## Library imports
-library(tidyverse)
-library(caret)
+require(tidyverse)
+require(caret)
 
 
 ## cleanup environment
@@ -13,7 +13,7 @@ source("GlobalVariables.R")
 
 
 ## Set saving of figures
-save_plots <- T
+save_plots <- FALSE
 
 
 ## Import correlation matrix functions
@@ -31,11 +31,18 @@ source(paste(path_Functions, "f_plot_cormat.R",           sep = "/"))
 
 ## Read in prepared file
 original_sample <- readRDS(file = paste(path_Data, "original_sample.RDS", sep = "/"))
-
+original_sample %>% View()
 
 ## Remove base encoding columns for categoricals:
 original_sample <- original_sample %>%
-                     select(-Position_Midfielder, -Foot_Right, -Month_Aug, -`Kick-off_15-16`, -Venue_London, -Weekday)
+                     select(-Position_Midfielder, 
+                            -Foot_Right, 
+                            -Month_Aug, 
+                            -`Kick-off_15-16`, 
+                            -Venue_London, 
+                            -Weekday,
+                            -Nationality_UK,
+                            -Birth_UK)
 
 
 ## Correlation based removals
@@ -100,6 +107,9 @@ original_sample <- original_sample %>%
 
 
 ##########################
+## Target needs to be factor for classification with caret
+original_sample$injured <- factor(original_sample$injured, levels = c("1", "0"), labels = c("Yes", "No"))
+
 ## set aside Year 2017 for performance testing
 training_set    <- original_sample %>% 
                      filter(Year < 2017)
@@ -109,13 +119,11 @@ performance_set <- original_sample %>%
 
 
 ## remove variables should not be in the predictive model
-training_set <- training_set %>% 
+training_set <- training_set %>%
                   select(-mid, -pid, -Year)
 
-
-## Target needs to be factor for classification with caret
-training_set$injured <- factor(training_set$injured, levels = c("1", "0"), labels = c("Yes", "No"))
-
+training_set <- training_set %>%
+                  select(-injury_length)
 
 #######################################################
 ## Create training & test sets
@@ -138,7 +146,6 @@ saveRDS(object = data_test,       file = paste(path_Data, "data_test.RDS",      
 saveRDS(object = performance_set, file = paste(path_Data, "data_perfomance.RDS", sep = "/"))
 
 data_train %>% View()
-
 # ### NOT USED ###
 # ## last check before take-off
 # any(is.na(training_set))
