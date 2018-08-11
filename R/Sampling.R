@@ -31,7 +31,7 @@ source(paste(path_Functions, "f_plot_cormat.R",           sep = "/"))
 
 ## Read in prepared file
 original_sample <- readRDS(file = paste(path_Data, "original_sample.RDS", sep = "/"))
-original_sample %>% View()
+#original_sample %>% View()
 
 ## Remove base encoding columns for categoricals:
 original_sample <- original_sample %>%
@@ -42,7 +42,9 @@ original_sample <- original_sample %>%
                             -Venue_London, 
                             -Weekday,
                             -Nationality_UK,
-                            -Birth_UK)
+                            -Birth_UK,
+                            -Team_Chelsea,
+                            -Opponent_Chelsea)
 
 
 ## Correlation based removals
@@ -145,7 +147,10 @@ saveRDS(object = data_train,      file = paste(path_Data, "data_train.RDS",     
 saveRDS(object = data_test,       file = paste(path_Data, "data_test.RDS",       sep = "/"))
 saveRDS(object = performance_set, file = paste(path_Data, "data_perfomance.RDS", sep = "/"))
 
-data_train %>% View()
+
+
+
+
 # ### NOT USED ###
 # ## last check before take-off
 # any(is.na(training_set))
