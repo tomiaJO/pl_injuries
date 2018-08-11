@@ -23,6 +23,7 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
                      ci95_lower_injury_rate_pct = ci95_lower_injury_rate_pct * 100,
                      ci95_upper_injury_rate_pct = ci95_upper_injury_rate_pct * 100)
   
+  ## Injury rates & game counts
   p_story <- summary %>%
               f_breakdown_by_bins(s_title = s_title,
                                   s_subtitle = s_subtitle,
@@ -34,7 +35,9 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
     p_story <- p_story +
                 facet_wrap(as.formula(paste("~", s_facet)), ncol = 1)
   }
+  ##
   
+  ## Injury rate w/ CIs
   p_ci <- summary %>%
               f_breakdown_w_ci(s_x        = s_x, 
                                s_title    = s_title, 
@@ -47,10 +50,47 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
     p_ci <- p_ci +
               facet_wrap(as.formula(paste("~", s_facet)), ncol = 1)
   }
+  ##
+  
+  ## Injury lengths with CIs
+  df <- df %>%
+          ungroup() %>%
+          filter(injured == 1)
+  
+  if(!is.null(s_facet)) {
+    df <- df %>%
+      group_by_(s_x, s_facet, "injury_type") 
+  } else {
+    df <- df %>%
+            group_by_(s_x , "injury_type")
+  }
+  
+  p_il <- df %>%
+            summarize(`Avg. Length` = mean(injury_length)) %>%
+            ungroup() %>%
+            ggplot(aes_string(x= s_x , y = "`Avg. Length`", color = "injury_type", group = "injury_type")) +
+            geom_point(size = 1.2) +
+            geom_line(size = 1.05) +
+            
+            labs(title = gsub(pattern = "rate", replacement = "length", x = s_title, ignore.case = T),
+                 x = s_x) +
+            story_theme() +
+            theme(axis.text.x = element_text(angle = 45, hjust = 1),
+                  legend.position = "none")
+  
+  if(!is.null(s_facet)) {
+    p_il <- p_il +
+      facet_wrap(as.formula(paste("~", s_facet, "+", "injury_type", sep = "")), ncol = 2)
+  } else {
+    p_il <- p_il +
+              facet_wrap(~injury_type)
+  }
+  ##
   
   r <- list("storyplot" = p_story,
             "ciplot"    = p_ci,
-            "data"      = summary)
+            "data"      = summary,
+            "ilenplot"  = p_il)
   
   return(r)
 }
