@@ -1,0 +1,236 @@
+---
+title: 'Project Technical Discussion: Prediction of lower-body strains in Soccer'
+author: "Tamas Koncz"
+date: "August 11, 2018"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    toc: yes
+    toc_depth: '2'
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+
+opts_chunk$set(warning = FALSE)
+opts_chunk$set(message = FALSE)
+opts_chunk$set(echo    = FALSE)
+```
+  
+# Introduction {.tabset}  
+
+<span style="color:red">##TODO</span> 
+
+\pagebreak
+
+# Scope {.tabset .tabset-fade .tabset-pills}
+
+Data used for this exercise is a per game per player level collection of the Premier League matches between 2003 and 2018.  
+
+The target variable for prediction is "injured" - 1 if player was reported injured after the game, 0 otherwise. Descriptive data is also available on the type of the injury, and how long it reportedly last.  
+
+The list of Other variables can be found in the Appendix. 
+
+Data is courtesy of Gabor Bekes and Endre Borza, and can not be shared without their permission.  
+
+\pagebreak
+
+# Data Preparation {.tabset}  
+
+## Filters {.tabset}  
+
+As the original dataset was in raw format (as collected from the internet), certain filters need to be applied before data is ready for meaningful modeling work.
+
+### Years  
+
+Years before 2010 were removed as their injury data was non-complete.  
+Year 2018 was removed as data was incomplete - the Premier League season was still in progress at the time of data collection.
+
+### Injury types & length  
+
+Unfortunately soccer injuries come in many different formats and can be a wide range of seriousness.  
+
+The aim in this project is not to predict all possible injury types. The goal is to help decision makers (coaching staff) monitor the players' physical condition, and manage their playing time if neccessary for avoiding injuries.  
+
+<span style="color:red">##TODO: chart titles, grid. highlight injuries in scopes</span> 
+```{r, out.width = '50%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/2. Injury types.jpeg")
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/3. Injury Lengths.jpeg") 
+```
+
+Any successful prediction exercise would need to make sure that the event being predicted does have a statistical connection to the predictors. For many injury types, we know that their occurance unrelated outside conditions (at least to our current knowledge). Examples include knocks, concussions, etc. This analysis is not interested in these.  
+  
+Rather, the injuries we are after are the "wear and tear" type - breakdowns of the human body related to increased physical stress, either in intensity or length (Unfortunately, most of the available data describes length - e.g. games played / rather than intensity - e.g. maximum speed. But more on this later).  
+Based on their mechanical relationship and similar length profiles, injuries to be in focus are:  
+1. Hamstring  
+2. Groin Strain  
+3. Calf Muslce Strain  
+4. Thigh Muscle Strain  
+
+Even looking at the same injury types sometimes can be "apples to oranges", as their severity might be significantly different. The question "How to measure the severity of an injury?" can be answered many ways.  
+
+In this analysis, the descriptive data available on injuries is their reported length. As seen above, wide ranges are covered. Should we treat a hamstring strain lasting 1 day the same as one lasting 2 months?  
+
+How this question is handled is an important part of the analysis. One could certainly try to weight injuries by their length. This would be a good input into a cost-benefit analysis of resting players.
+However, to avoid introducing unneccessary complexity, injuries lasting less than 2 weeks will not be considered an injury for the purposes of this analysis.  
+
+This does remove a large part of the "injured" data (see below - removed partition is marked by orange), but it helps create a more homogenous categorization.
+
+```{r, out.width = '50%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/4. Hamstring Injury Lengths.jpeg")
+```  
+  
+#### Position  
+
+<span style="color:red">##TODO: write about position filters</span> 
+
+#### Playing time
+
+<span style="color:red">##TODO: explain why it wasn't applied/span> 
+
+#### Missing data
+
+<span style="color:red">##TODO: explain how it was handled in different cases</span> 
+
+* Foot
+* Position
+* Games played
+
+## Feature Engineering
+
+There are certain variables that were not available in the raw data format, however they could be calculated / extracted, with the aim of enhancing the analytical separation between injured / non-injured cases.  
+
+Below is a comprehensive list of all variables created during the data preparation:  
+* Weekday and Month    
+* BMI  
+* Team and Opponent  
+* Birthplace and Nationality  
+* Kick-off time  
+* Injured ...  
+* Games ...  
+* Groupings  
+* Polinomial terms  
+
+<span style="color:red">##TODO: explain logic for each</span> 
+
+*An important technical note on categorical variables: before feeding them into predictive models, all categoricals were dummy-encoded.*  
+
+## Exploratory Analysis
+## Separation of data sets
+
+\pagebreak
+
+# Modeling {.tabset .tabset-fade .tabset-pills}
+## The problem of class imbalance
+## Methods used
+## Results
+
+\pagebreak
+
+# Cost-benefit analysis
+
+\pagebreak
+
+# Appendix {.tabset .tabset-fade .tabset-pills}
+## Project organization  
+
+This project is breaken into separte, runable parts, which are not included in this markdown file.  
+The main parts are:  
+1. Raw Data  
+2. Runable R scripts, storing the steps of the analysis  
+3. Functions  
+4. Models  
+5. Notebooks  
+6. Figures  
+7. Data  
+
+<span style="color:red">##TODO: add details</span> 
+
+## List of variables in raw data
+
+```{r}
+kable(data.frame(
+"Variable" = c("Date",
+"balance",
+"ft_a",
+"ft_h",
+"Attendance",
+"Game week",
+"Kick-off",
+"Venue",
+"home",
+"ht_a",
+"ht_h",
+"injured",
+"mid",
+"minutes",
+"pid",
+"starter",
+"injury_length",
+"injury_type",
+"injury_minutes_played",
+"days_till_injury",
+"pl/all_minutes/games_n/season",
+"Country of birth",
+"Date of birth",
+"First name",
+"Foot",
+"Height",
+"Last name",
+"Nationality",
+"Place of birth",
+"Position",
+"Weight",
+"away_team",
+"away_tid",
+"home_team",
+"home_tid"),
+"Description" = c("date of the game (YYYY-MM-DD)",
+"absolute full time goal difference=|ft_a - ft_h|",
+"full time away team goals",
+"full time home team goals",
+"number of fans at the game",
+"game week of the season",
+"kickoff time (GMT)",
+"Location of the stadium",
+"whether player lines up or the home side or not",
+"half time away team goals",
+"half time home team goals",
+"whether player was reported injured after the match, (before playing any other match) or not",
+"unique match id",
+"minutes played by the player on the match (stoppage time is discarded, so cannot be more than 90)",
+"unique player id",
+"whether player started the match or not",
+"if player was reported after the game, how many days did the injury reportedly last",
+"what type of injury was reported",
+"equals the minutes variable in case of injured = 1, otherwise 0",
+"how many days between the date of the match and start of reported injury",
+"how many games/minutes of premier league/any other football played by player in the n/days before the match (or in the season, total)",
+"player country of birth",
+"player DoB",
+"player first name",
+"player preferred foot",
+"player height",
+"player last name",
+"player nationality",
+"player place of birth",
+"player position",
+"player weight (at time of collecting data)",
+"away team name",
+"away team id",
+"home team name",
+"home team id")
+))
+
+```
+
+
+## Sessioninfo
+
+```{r}
+sessionInfo()
+```
+
