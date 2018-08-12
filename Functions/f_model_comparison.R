@@ -1,6 +1,6 @@
 f_model_comparison <- function (models, df_test) {
   
-  pred_prob  <- predict.train(models[[1]], newdata = data_test, type = "prob")[, "Yes", drop = F]
+  pred_prob  <- predict.train(models[[1]], newdata = df_test, type = "prob")[, "Yes", drop = F]
   names(pred_prob)[1] = names(models)[1]
   
   for(i in 2:length(models)) {

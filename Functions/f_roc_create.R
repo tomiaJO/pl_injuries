@@ -16,7 +16,7 @@ f_roc_create <- function(pp, truth) {
       pred <- ifelse(pp[, names(pp)[col]] > thresholds[ix], "Yes", "No")
       pred <- factor(pred, levels = c("Yes", "No"))
       
-      cm <- as.matrix(confusionMatrix(data = pred, reference = data_test$injured))
+      cm <- as.matrix(confusionMatrix(data = pred, reference = truth))
       
       tpr[ix] <- cm[1, 1] / (cm[1, 1] + cm[2, 1])
       fpr[ix] <- cm[1, 2] / (cm[1, 2] + cm[2, 2])
