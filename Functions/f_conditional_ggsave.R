@@ -1,6 +1,6 @@
 f_conditional_ggsave <- function(save = F, p, filepath, w = 6, h = 4) {
   if(save){
-    d = w * h * 200 / 3
+    d = w * h * 50 / 3
     
     ggsave(filename = filepath, 
            plot     = p, 
