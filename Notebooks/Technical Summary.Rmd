@@ -12,21 +12,27 @@ output:
     toc_depth: '2'
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include = FALSE}
 library(knitr)
+library(tidyverse)
+library(caret)
+library(DMwR)
+library(glmnet)
+library(xgboost)
+library(ranger)
 
 opts_chunk$set(warning = FALSE)
 opts_chunk$set(message = FALSE)
 opts_chunk$set(echo    = FALSE)
 ```
   
-# Introduction {.tabset}  
+# Introduction 
 
 <span style="color:red">##TODO</span> 
 
 \pagebreak
 
-# Scope {.tabset .tabset-fade .tabset-pills}
+# Scope
 
 Data used for this exercise is a per game per player level collection of the Premier League matches between 2003 and 2018.  
 
@@ -38,7 +44,7 @@ Data is courtesy of Gabor Bekes and Endre Borza, and can not be shared without t
 
 \pagebreak
 
-# Data Preparation {.tabset}  
+# Data Preparation
 
 ## Filters {.tabset}  
 
@@ -83,21 +89,26 @@ This does remove a large part of the "injured" data (see below - removed partiti
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/4. Hamstring Injury Lengths.jpeg")
 ```  
   
-#### Position  
+### Position  
+```{r, out.width = '50%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/6. Injuries vs Position.jpeg")
+``` 
 
-<span style="color:red">##TODO: write about position filters</span> 
+Goalkeepers were removed from the population, as their behaviour on the court is radically different from other positions - as we see, their injury rates are significantly lower as well. Focus is on field players.  
+  
+Records with missing position were also remove - upon structural investigation, the quality of these rows were not deemed truthworsty for further investigation.  
+
 
 #### Playing time
 
-<span style="color:red">##TODO: explain why it wasn't applied/span> 
+<span style="color:red">##TODO: explain why it wasn't applied</span>  
 
-#### Missing data
+#### Missing data - foot & playing history  
 
-<span style="color:red">##TODO: explain how it was handled in different cases</span> 
+<span style="color:red">##TODO: explain how it was handled in different cases (basically all removed)</span>  
 
 * Foot
-* Position
-* Games played
+* Games (or minutes) played
 
 ## Feature Engineering
 
@@ -106,31 +117,304 @@ There are certain variables that were not available in the raw data format, howe
 Below is a comprehensive list of all variables created during the data preparation:  
 * Weekday and Month    
 * BMI  
-* Team and Opponent  
+* Team and Opponent
 * Birthplace and Nationality  
 * Kick-off time  
 * Injured ...  
 * Games ...  
-* Groupings  
+* Groupings (e.g. Venue, Team)  
 * Polinomial terms  
 
 <span style="color:red">##TODO: explain logic for each</span> 
 
 *An important technical note on categorical variables: before feeding them into predictive models, all categoricals were dummy-encoded.*  
 
-## Exploratory Analysis
-## Separation of data sets
+## Exploratory Analysis {.tabset} 
+
+### Intro, explain chart types
+
+### By physical attributes - age, height, weight, BMI
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/8g. Injuries vs Age.jpeg")
+``` 
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9g. Injuries vs Weight.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/10g. Injuries vs Height.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/11g. Injuries vs BMI.jpeg")
+```
+
+### By Kick-off time
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/12g. Injuries vs Kick-off Time.jpeg")
+```
+
+### By year, month & weekday
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/13g. Injuries vs Year.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/14g. Injuries vs Month.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/15g. Injuries vs Weekday.jpeg")
+```
+
+### By nationality & birthplace
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/17g. Injuries vs Nationality (Regionalized).jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/18g. Injuries vs Birth Country (Regionalized).jpeg")
+```
+
+### By team, opponent and venue
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/19g. Injuries vs Team.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/20g. Injuries vs Opponent.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/16g. Injuries vs Venue.jpeg")
+```
+
+### By games & minutes played
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/21g. Injuries vs PL Games in Season.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/22g. Injuries vs All Games in Season.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs Non-PL Games in Season.jpeg")
+```
+
+<span style="color:red">##TODO: add by minutes, by 4/14/28 category charts</span>  
+
+### By injury history
+
+<span style="color:red">##TODO: add charts</span>  
 
 \pagebreak
 
-# Modeling {.tabset .tabset-fade .tabset-pills}
-## The problem of class imbalance
-## Methods used
-## Results
+# Modeling  
+## Methodology {.tabset}  
+### Separation of data sets  
+### The problem of class imbalance   
+
+Based on the previous definition of "injured", the cleaned data set consist of only 1% of positive cases.  
+This makes it highly imbalanced, something that can hurt model performance for classification tasks. 
+  
+More precisely: the cost of missclassifying a case-of-interest (injured == YES) observation is higher than the cost of a reversed error. It's very important to know when a player is in risk of getting injured, as if the event occurs, he can be out for a long period of time, costing the team money and available resource to compete as well. On the other hand, if a player is in good shape, an extra rest day can only hurt so much.  
+  
+In machine learning application there are multiple ways of addressing this issue. Main ones include, but are not limited to:  
+1. Sub-sampling
+2. Cost sensitive learning - weighting observations
+3. Learning methods, like one-class classifiers (e.g. autoencoders)
+
+Let's review 1. in more detail, which was used for this analysis.  
+
+#### Sub-sampling techniques for learning from imbalanced data
+
+There are three possible ways to sub-sample data for better predictive performance: up-sampling, down-sampling, and methods mixing the two, like SMOTE. Each carryies their own benefits and disadvantages.  
+
+1. Down-sampling the majority class  
+In this case wer are removing observations from the majority class to make the data more balanced. Usually this method is best when the available data size is large.  
+It can reduce burden of computation effort and storage, however on the flip side it could potentially remove useful information.  
+
+2. Up-sampling the minority class  
+Oversampling repeats examples of the minority class, usually via bootstrapping. 
+There is no information loss that happens with down-sampling, however computation times can increase.  
+Also, by repeatation of the same observations, this method can lead to overfitting.
+
+3. SMOTE: Synthetic Minority Over-sampling TEchnique  
+An alternative approach is "mixing" the above two techniques. Down-sampling has an obvious drawback in loss of information. Up-sampling also risks to identify more similar, but also more specific regions of the feature space, hence not being able to generalize well in certain cases.  
+SMOTE creates synthetic new examples from the minority class, rather than just repeating existing observations.  
+The method is actually inspired by an older image recognition technique, where the same pictures are getting slightly distorted (e.g. via rotation).  
+The idea behind SMOTE works well in theory - however, depending on the data it might introduce new problems. Such a problem could be "noisy" data - when cases of classes are not well separated, SMOTE can enlarge this overlap, as it does not take distribution into consideration when creating synthetic new examples. For similar reasons, SMOTE tends to not work well for high dimensional data.  
+
+
+Another important aspect of sub-sampling is when to apply it in the modeling workflow.  
+If subsampling is done before fitting a model, it will introduce two problems:
+1. For model tuning, the held-out sets in CV will also be sub-sampled. This can create unrealistic or overly optimistic performance measures.  
+
+2. Added uncertainity: we won't know for sure how results would look like with a different subsample. Similar effects arise as in the point above.  
+
+<span style="color:red">##TODO: reference resources properly</span> 
+- https://www.analyticsvidhya.com/blog/2017/03/imbalanced-classification-problem/  
+- https://topepo.github.io/caret/subsampling-for-class-imbalances.html  
+- http://www.ijcst.com/icaccbie11/sp1/krishnaveni.pdf  
+- https://www.jair.org/papers/paper953.html  
+
+#### A practical comparison of different sub-sampling methods 
+
+Below is a summary of different sub-sampling techniques applied to the injury prediction problem.
+<span style="color:red">##TODO: Re-run with best method (XGBOOST so far)</span> 
+
+```{r, out.width = '65%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Comparison of sampling strategies.jpeg")
+```
+
+An interesting outcome is that AUC values of the ROC curve are not significantly different.  
+AUC however is just one metric to describe the models' performance. The real optimization problem is maximizing the time a player can spend on the soccer field. The costliest case is when an injury event is not detected - false negatives can create a lot more headache than false positives.  
+
+Based on the LOGIT trial, down-sampling seems to work best. For further section, down-sampling is assumed if not noted otherwise, given it's better use of computation time as well.
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. ROC Curve of different sampling strategies.jpeg")
+```
+
+## Methods used {.tabset} 
+
+### Overview
+
+A total of 5 different methods were fit and tuned to select the best one for predicting injuries.  
+Below is a review of them one-by-one to understand the differences.
+
+The "caret" R library was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document.
+
+Each method was called with the same control function:
+```{r, eval = FALSE, echo = TRUE}
+trainControl(method = "repeatedcv", 
+             repeats = 5,
+             classProbs = TRUE,
+             summaryFunction = twoClassSummary,
+             sampling = "down")
+```
+
+Models were tuned via 5-fold cross-validation. Other parameters instruct caret that this is a binary classification problem, and that down-sampling should be used during the fitting process.  
+  
+Seeding was applied before each fitting call, to facilitate reproducibility of the results. 
+```{r, eval = FALSE, echo = TRUE}
+set.seed(93)
+```
+
+
+<span style="color:red">##TODO: write a bit of theoretical background for each to explain why they were used</span> 
+
+### Simple Logit (GLM)  
+
+```{r, eval = FALSE, echo = TRUE}
+train(injured ~ .,
+      data      = data_train,
+      method    = "glm",
+      family    = binomial(link = "logit"),
+      metric    = "ROC",
+      trControl = ctrl)
+```
+
+### Simple Probit (GLM)
+
+```{r, eval = FALSE, echo = TRUE}
+train(injured ~ .,
+      data      = data_train,
+      method    = "glm",
+      family    = binomial(link = "probit"),
+      metric    = "ROC",
+      trControl = ctrl)
+```
+
+### Reguralized Logit (GLMNet)
+
+```{r, eval = FALSE, echo = TRUE}
+train(injured ~ .,
+      data       = data_train,
+      method     = "glmnet",
+      family     = "binomial",
+      metric     = "ROC",
+      trControl  = ctrl,
+      preProcess = c("center", "scale"),
+      tuneLength = 10)
+```
+
+The tuneLength parameter instructs caret to complete a 10 x 10 grid search of alpha and lambda parameters.    
+Standardization is applied, as necessary for regularization.  
+
+### Random Forest (Ranger)  
+
+```{r, eval = FALSE, echo = TRUE}
+tg_rf <- expand.grid(.mtry = c(2:7),
+                     .splitrule = "gini",
+                     .min.node.size = c(10, 25, 100))
+
+train(injured ~ .,
+      method     = "ranger",
+      metric     = "ROC",
+      trControl  = ctrl,
+      tuneGrid   = tg_rf,
+      num.trees  = 500,
+      importance = "impurity")
+```
+
+
+### Gradient Boosting (XGBoost)
+
+```{r, eval = FALSE, echo = TRUE}
+tg_xgb <- expand.grid(nrounds = 250,
+                      max_depth = c(2:5),
+                      eta = c(0.01, 0.05),
+                      gamma = 0,
+                      colsample_bytree = c(.25, .5, .75),
+                      min_child_weight = 1,
+                      subsample = c(.25, .5, .75))
+
+train(injured ~ .,
+      method = "xgbTree",
+      metric = "ROC",
+      data = data_train,
+      trControl = ctrl,
+      tuneGrid = tg_xgb)
+```
+
+
+## Results {.tabset}
+
+### Prediction performance
+
+```{r, out.width = '65%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Model performance - resampling.jpeg")
+```
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. ROC Curve achieved by different models.jpeg")
+```
+
+<span style="color:red">##TODO: XGBoost seems best (as expected). Do write-up once models / variables are finalized</span> 
+
+### Variable importance
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Variable Importance.jpeg")
+```
+
+<span style="color:red">
+Currently big differences from model to model in which variables are most important...  
+Likely due to many correlations (Logit / Probit / GLMNet were very similar).  
+Squared version could be removed from tree-based methods.  
+
+Also, pick few examples, explain with LIME
+</span> 
 
 \pagebreak
 
 # Cost-benefit analysis
+
+<span style="color:red">##TODO: Simple numeric example on sum of missed time using algorithmic solution vs not</span> 
 
 \pagebreak
 
@@ -227,6 +511,9 @@ kable(data.frame(
 
 ```
 
+## Citations
+
+<span style="color:red">##TODO: list resources</span> 
 
 ## Sessioninfo
 
