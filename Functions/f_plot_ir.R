@@ -65,18 +65,7 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
             group_by_(s_x , "injury_type")
   }
   
-  p_il <- df %>%
-            summarize(`Avg. Length` = mean(injury_length)) %>%
-            ungroup() %>%
-            ggplot(aes_string(x= s_x , y = "`Avg. Length`", color = "injury_type", group = "injury_type")) +
-            geom_point(size = 1.2) +
-            geom_line(size = 1.05) +
-            
-            labs(title = gsub(pattern = "rate", replacement = "length", x = s_title, ignore.case = T),
-                 x = s_x) +
-            story_theme() +
-            theme(axis.text.x = element_text(angle = 45, hjust = 1),
-                  legend.position = "none")
+  p_il <- f_breakdown_injury_length(df, s_x, s_title)
   
   if(!is.null(s_facet)) {
     p_il <- p_il +
@@ -87,10 +76,24 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
   }
   ##
   
+  ##grid
+  p_story <- p_story + theme(plot.title = element_blank())
+  p_ci    <- p_ci    + theme(plot.title = element_blank())
+  p_il    <- p_il    + theme(plot.title = element_blank())
+  g <- arrangeGrob(p_story, 
+                   p_ci,
+                   p_il,
+                   ncol = 3,
+                   # layout_matrix = rbind(rbind(c(1,  1, 1, 2, 2, 2),
+                   #                             c(NA, 3, 3, 3, 3, NA))),
+                   top = grid::textGrob(s_title, gp = grid::gpar(fontsize = 18, lineheight = 1.25)))
+  ##
+  
   r <- list("storyplot" = p_story,
             "ciplot"    = p_ci,
             "data"      = summary,
-            "ilenplot"  = p_il)
+            "ilenplot"  = p_il,
+            "grid"      = g)
   
   return(r)
 }
