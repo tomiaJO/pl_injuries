@@ -51,7 +51,7 @@ p_sampling_strategies <- resamples_object$values %>%
   geom_boxplot() +
   facet_wrap(~metric, ncol = 1) +
   labs(title    = "Comparison of Sampling strategies",
-       subtitle = "GLM, no regularization",
+       subtitle = "LOGIT, no regularization",
        x        = "Model",
        y        = "",
        caption  = "Note: Results are based on 50 resamples of training data") +
@@ -64,7 +64,7 @@ ggsave(filename = paste(path_Figures, "999. Comparison of sampling strategies.jp
        plot = p_sampling_strategies, 
        device = "jpeg", 
        width = 7.5, height = 12,
-       dpi = 1600)
+       dpi = 400)
 
 
 test_eval <- f_model_comparison(models = model_list, df_test = data_test)
@@ -72,9 +72,13 @@ test_eval <- f_model_comparison(models = model_list, df_test = data_test)
 test_eval$auc
 
 p_roc <- test_eval$plot
+p_roc <- p_roc +
+          labs(title = "ROC Curves for different sampling strategies",
+               subtitle = "LOGIT, no regularization",
+               caption = "Note: Results are measured on a held-out test set not used in model fitting")
 
 ggsave(filename = paste(path_Figures, "999. ROC Curve of different sampling strategies.jpeg", sep = "/"), 
        plot = p_roc, 
        device = "jpeg", 
        width = 6.5, height = 4,
-       dpi = 1600)
+       dpi = 400)

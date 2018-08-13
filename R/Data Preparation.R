@@ -14,19 +14,20 @@ source("GlobalVariables.R")
 
 
 ## Set saving of figures
-save_plots <- F
+save_plots <- T
 
 
 ## Import EDA functions
-source(paste(path_Functions, "f_sec_scale.R",             sep = "/"))
-source(paste(path_Functions, "f_breakdown_by_bins.R",     sep = "/"))
-source(paste(path_Functions, "f_breakdown_by_variable.R", sep = "/"))
-source(paste(path_Functions, "f_calculate_ci.R",          sep = "/"))
-source(paste(path_Functions, "f_breakdown_w_ci.R",        sep = "/"))
-source(paste(path_Functions, "f_conditional_ggsave.R",    sep = "/"))
-source(paste(path_Functions, "f_plot_ir.R",               sep = "/"))
-source(paste(path_Functions, "f_save_plots.R",            sep = "/"))
-source(paste(path_Functions, "f_player_history.R",        sep = "/"))
+source(paste(path_Functions, "f_sec_scale.R",               sep = "/"))
+source(paste(path_Functions, "f_breakdown_by_bins.R",       sep = "/"))
+source(paste(path_Functions, "f_breakdown_by_variable.R",   sep = "/"))
+source(paste(path_Functions, "f_calculate_ci.R",            sep = "/"))
+source(paste(path_Functions, "f_breakdown_w_ci.R",          sep = "/"))
+source(paste(path_Functions, "f_conditional_ggsave.R",      sep = "/"))
+source(paste(path_Functions, "f_plot_ir.R",                 sep = "/"))
+source(paste(path_Functions, "f_save_plots.R",              sep = "/"))
+source(paste(path_Functions, "f_player_history.R",          sep = "/"))
+source(paste(path_Functions, "f_breakdown_injury_length.R", sep = "/"))
 
 ## Import ggplot themes
 source(paste(path_Functions, "ggplot_themes.R",           sep = "/"))
@@ -89,6 +90,9 @@ injuries <- injuries %>%
               mutate(Team     = ifelse(home == 1, home_team, away_team)) %>%
               mutate(Opponent = ifelse(home == 0, home_team, away_team))
 
+## Fix formatting of "home" column
+injuries <- injuries %>% 
+              mutate(home = factor(home, levels = c(1, 0), labels = c("Home", "Away")))
 
 ##Visualize: Injury trend over years
 p_injury_trend <- injuries %>%
@@ -159,12 +163,11 @@ p_injury_types <- injuries %>%
                     geom_bar(stat = "identity", fill = "steelblue2") +
                     geom_text(aes(label = n), hjust = 1.05, vjust = 0.325, fontface = "bold") +
                     coord_flip() + 
-                    labs(title    = "The most common injury is to the hamstring",
-                         subtitle = "Number of injuries by type",
+                    labs(title    = "Lower body muscle strains are among the most common injuries",
                          x        = "Injury Type",
-                         y        = "Count of injuries",
+                         y        = "Number of injuries",
                          caption  = "Note: Injuries that happened less than 25x are group as 'Other'") +
-                    story_theme()
+                    story_theme() + theme(plot.title = element_text(size = 10.5))
 
 f_conditional_ggsave(save = save_plots, 
                      p = p_injury_types, 
@@ -323,7 +326,7 @@ p_by_minutes <- p_by_minutes +
 
 f_conditional_ggsave(save = save_plots, 
                      p = p_by_minutes, 
-                     filepath = paste(path_Figures, "5. Hamstring Injury vs PL season minutes.jpeg", sep = "/"), 
+                     filepath = paste(F, "5. Injury rates vs PL season minutes.jpeg", sep = "/"), 
                      w = 6, 
                      h = 4.5)
 
@@ -340,16 +343,9 @@ p_by_position1 <- injuries %>%
                     coord_flip() + 
                     labs(y = "# of games",
                          x = "Position",
-                         title = "Positional breakdown of games played and injury rates",
-                         subtitle = "s_subtitle",
-                         caption = "s_caption") +
+                         title = "Positional breakdown",
+                         subtitle = "Games Played") +
                     story_theme()
-
-f_conditional_ggsave(save = save_plots, 
-                     p = p_by_position1, 
-                     filepath = paste(path_Figures, "6a. Hamstring Injury vs Position.jpeg", sep = "/"), 
-                     w = 6, 
-                     h = 4.5)
 
 
 l_by_position2 <- injuries %>%
@@ -359,30 +355,33 @@ l_by_position2 <- injuries %>%
 p_by_position2 <- l_by_position2$data %>%
                     mutate(Position = factor(Position, levels = c("Missing", "Goalkeeper", "Defender", "Midfielder", "Attacker"))) %>%
                     ggplot(aes(x = Position, y = injury_rate_pct, label = formatC(injury_rate_pct, digits = 2, format = "f"))) + 
-                      geom_point(stat='identity', color = "steelblue2", size = 6) +
+                      geom_point(stat='identity', color = "firebrick", size = 6) +
                       geom_segment(aes(y = ci95_lower_injury_rate_pct, 
                                        yend = ci95_upper_injury_rate_pct, 
                                        x = Position, 
                                        xend = Position), 
-                                   color = "steelblue2") +
+                                   color = "firebrick") +
                       geom_text(color = "white", size = 2) +
                       coord_flip() + 
-                      labs(y        = "# of games",
+                      labs(y        = "Injury Rate (%)",
                            x        = "Position",
-                           title    = "Positional breakdown of games played and injury rates",
-                           subtitle = "TBA",
-                           caption  = "TBA") +
-                      story_theme()
+                           title    = "",
+                           subtitle = "Injury Rates") +
+                      story_theme() +
+                      theme(axis.text.y = element_blank(),
+                            axis.title.y = element_blank())
 
+## Grid formatting
+g <- arrangeGrob(p_by_position1, p_by_position2, layout_matrix = rbind(c(1,1,1,2,2)))
 
 f_conditional_ggsave(save = save_plots, 
-                     p = p_by_position2, 
-                     filepath = paste(path_Figures, "6b. Hamstring Injury vs Position.jpeg", sep = "/"), 
+                     p = g, 
+                     filepath = paste(path_Figures, "6. Injuries vs Position.jpeg", sep = "/"), 
                      w = 6, 
                      h = 4.5)
 
-##TODO: finalize formatting, grid
 
+## REMOVE positions
 injuries <- injuries %>%
                     #Note1 - Goalkeepers: very different dynamics, as shown by the Injury rate %
                     filter(Position != "Goalkeeper") %>%
@@ -397,9 +396,15 @@ p_minutes_played <- injuries %>%
                                                     include.lowest = T,
                                                     labels = c("-15", "15-30", "30-45", "45-60", "60-75", "75+"))) %>%
                       f_plot_ir(s_x = "`Minutes played`", 
-                                s_title = "When hamstring injuries happen during the game")
+                                s_title = "Injuries vs Minutes Played")
 
-f_save_plots(save_plots, p_minutes_played, "7", "Injury rate vs Minutes Played", 6, 4.5)
+f_save_plots(save_plots = save_plots, 
+             p = p_minutes_played, 
+             n = "7", 
+             title = "Injuries vs Minutes Played", 
+             w = 6, 
+             h = 4, 
+             save_all = FALSE)
 
 
 ##Visualize: Injury vs Age
@@ -408,9 +413,9 @@ p_hamstring_vs_age <- injuries %>%
                                                    breaks = c(-Inf, 20, 22.5, 25, 27.5, 30, 32.5, 35, Inf), 
                                                    include.lowest = T)) %>%
                         f_plot_ir(s_x     = "`Age (Years)`", 
-                                  s_title = "Hamstring Injury vs Age")
+                                  s_title = "Injuries vs Age")
 
-f_save_plots(save_plots, p_hamstring_vs_age, "8", "Injury rate vs Age", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_age, "8", "Injuries vs Age", 6, 4.5)
 
 
 ## By Weight
@@ -419,9 +424,9 @@ p_hamstring_vs_weight <- injuries %>%
                                                      breaks = c(-Inf, 60, 65, 70, 75, 80, 85, 90, Inf), 
                                                      include.lowest = T)) %>%
                           f_plot_ir(s_x     = "`Weight (kg)`", 
-                                    s_title = "Injury rate vs Weight")
+                                    s_title = "Injuries vs Weight")
 
-f_save_plots(save_plots, p_hamstring_vs_weight, "9", "Injury rate vs Weight", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_weight, "9", "Injuries vs Weight", 6, 4.5)
 
 
 ## By Height:
@@ -430,9 +435,9 @@ p_hamstring_vs_height <- injuries %>%
                                                      breaks = seq(0, 220, by = 5), 
                                                      include.lowest = T)) %>%
                           f_plot_ir(s_x     = "`Height (cm)`", 
-                                    s_title = "Hamstring Injury vs Height")
+                                    s_title = "Injuries vs Height")
 
-f_save_plots(save_plots, p_hamstring_vs_height, "10", "Injury rate vs Height", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_height, "10", "Injuries vs Height", 6, 4.5)
 
 
 ## By BMI:
@@ -441,9 +446,9 @@ p_hamstring_vs_bmi <- injuries %>%
                                          breaks = c(-Inf, 20, 21, 22, 23, 24, 25, 26, 27, Inf), 
                                          include.lowest = T)) %>%
                         f_plot_ir(s_x     = "BMI", 
-                                  s_title = "Hamstring Injury vs BMI")
+                                  s_title = "Injuries vs BMI")
 
-f_save_plots(save_plots, p_hamstring_vs_bmi, "11", "Injury rate vs BMI", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_bmi, "11", "Injuries vs BMI", 6, 4.5)
 
 
 ## By Kick-off time
@@ -457,39 +462,38 @@ injuries <- injuries %>%
 ##TODO: something is not right, last break should be 24.. only works with Inf now
 p_hamstring_vs_kickoff <- injuries %>%
                             f_plot_ir(s_x     = "`Kick-off`", 
-                                      s_title = "Hamstring Injury vs Kick-off Time")
+                                      s_title = "Injuries vs Kick-off Time")
 
-f_save_plots(save_plots, p_hamstring_vs_kickoff, "12", "Hamstring Injury vs Kick-off Time", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_kickoff, "12", "Injuries vs Kick-off Time", 6, 4.5)
 
  
 ## By Year
 p_hamstring_vs_year <- injuries %>%
                           f_plot_ir(s_x     = "Year", 
-                                    s_title = "Hamstring Injury vs Year")
+                                    s_title = "Injuries vs Year")
 
-f_save_plots(save_plots, p_hamstring_vs_year, "13", "Hamstring Injury vs Year, Team", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_year, "13", "Injuries vs Year", 6, 4.5)
                           
 
 ## By Month --> visualize by year as well
 p_hamstring_vs_month <- injuries %>%
                           f_plot_ir(s_x     = "Month",
-                                    s_title = "Injury rate vs Month")
+                                    s_title = "Injuries vs Month")
 
-f_save_plots(save_plots, p_hamstring_vs_month, "14", "Injury rate vs Month", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_month, "14", "Injuries vs Month", 6, 4.5)
 
 ## TODO: Break-out Month by Year
 
 ## By Weekday
 p_hamstring_vs_weekday <- injuries %>%
                             f_plot_ir(s_x     = "Weekday", 
-                                      s_title = "Injury rate vs Weekday")
+                                      s_title = "Injuries vs Weekday")
 
-f_save_plots(save_plots, p_hamstring_vs_weekday, "15", "Injury rate vs Weekday", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_weekday, "15", "Injuries vs Weekday", 6, 4.5)
 
 
 ## By Venue
 p_hamstring_vs_venue <- injuries %>%
-                          mutate(home = factor(home, levels = c(1, 0), labels = c("Home", "Away"))) %>%
                           group_by(home, Venue) %>%
                           mutate(game_count = n()) %>%
                           ungroup() %>%
@@ -497,10 +501,10 @@ p_hamstring_vs_venue <- injuries %>%
                           mutate(Venue = reorder(Venue, -game_count)) %>%
                           f_plot_ir(s_x        = "Venue", 
                                     s_facet    = "home",
-                                    s_title    = "Injury rate vs Venue",
+                                    s_title    = "Injuries vs Venue",
                                     s_subtitle = "Split by Home/Away")
 
-f_save_plots(save_plots, p_hamstring_vs_venue, "16", "Injury rate vs Venue", 4, 6)
+f_save_plots(save_plots, p_hamstring_vs_venue, "16", "Injuries vs Venue", 4.5, 6)
 
 
 ## Group "small" venues into "Other":
@@ -524,9 +528,9 @@ injuries <- injuries %>%
   
 p_hamstring_vs_nationality <- injuries %>%
                                 f_plot_ir(s_x = "`Region - Nationality`",
-                                          s_title = "Injury rate vs Nationality (Regionalized)")
+                                          s_title = "Injuries vs Nationality (Regionalized)")
 
-f_save_plots(save_plots, p_hamstring_vs_nationality, "17", "Injury rate vs Nationality (Regionalized)", 6, 4)
+f_save_plots(save_plots, p_hamstring_vs_nationality, "17", "Injuries vs Nationality (Regionalized)", 6, 4)
 
 ## By country of birth
 injuries <- injuries %>%
@@ -540,9 +544,9 @@ injuries <- injuries %>%
 
 p_hamstring_vs_birth_country <- injuries %>%
                                   f_plot_ir(s_x = "`Region - Birth`",
-                                            s_title = "Injury rate vs Birth Country (Regionalized)")
+                                            s_title = "Injuries vs Birth Country (Regionalized)")
 
-f_save_plots(save_plots, p_hamstring_vs_birth_country, "18", "Injury rate vs Birth Country (Regionalized)", 6, 4)
+f_save_plots(save_plots, p_hamstring_vs_birth_country, "18", "Injuries vs Birth Country (Regionalized)", 6, 4)
 
 
 ## By Team
@@ -551,16 +555,16 @@ p_hamstring_vs_team <- injuries %>%
                                   s_title = "Injury rate vs Team",
                                   s_facet = "home")
 
-f_save_plots(save_plots, p_hamstring_vs_team, "19", "Injury rate vs Team", 4, 6)
+f_save_plots(save_plots, p_hamstring_vs_team, "19", "Injuries vs Team", 4.5, 6)
 
 
 ## By Opponent
 p_hamstring_vs_opponent <- injuries %>%
                               f_plot_ir(s_x = "Opponent",
-                                        s_title = "Injury rate vs Opponent",
+                                        s_title = "Injuries vs Opponent",
                                         s_facet = "home")
 
-f_save_plots(save_plots, p_hamstring_vs_opponent, "20", "Injury rate vs Opponent", 4, 6)
+f_save_plots(save_plots, p_hamstring_vs_opponent, "20", "Injuries vs Opponent", 4.5, 6)
 
 
 #######################################
@@ -598,9 +602,9 @@ p_hamstring_vs_pl_games_season <- injuries %>%
                                                                breaks = c(-Inf, 5, 10, 15, 20, 25, Inf), 
                                                                include.lowest = T)) %>%
                                     f_plot_ir(s_x     = "pl_games_season", 
-                                              s_title = "Injury rate vs PL Games in Season")
+                                              s_title = "Injuries vs PL Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_pl_games_season, "21", "Injury rate vs PL Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_pl_games_season, "21", "Injuries vs PL Games in Season", 6, 4.5)
 
 
 ## All Games in Season
@@ -609,9 +613,9 @@ p_hamstring_vs_all_games_season <- injuries %>%
                                                                  breaks = c(-Inf, 5, 10, 15, 20, 25, Inf), 
                                                                  include.lowest = T)) %>%
                                     f_plot_ir(s_x     = "all_games_season", 
-                                              s_title = "Injury rate vs All Games in Season")
+                                              s_title = "Injuries vs All Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_all_games_season, "22", "Injury rate vs All Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_all_games_season, "22", "Injuries vs All Games in Season", 6, 4.5)
 
 ## CREATE non-PL variables
 injuries <- injuries %>%
@@ -630,9 +634,9 @@ p_hamstring_vs_nonpl_games_season <- injuries %>%
                                                                    breaks = c(-Inf, 2.5, 5, 7.5, 10, 12.5, 15, Inf),
                                                                    include.lowest = T)) %>%
                                       f_plot_ir(s_x     = "non_pl_games_season", 
-                                                s_title = "Injury rate vs Non-PL Games in Season")
+                                                s_title = "Injuries vs Non-PL Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_nonpl_games_season, "23", "Injury rate vs Non-PL Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_nonpl_games_season, "23", "Injuries vs Non-PL Games in Season", 6, 4.5)
                                       
 
 ###################################
@@ -762,3 +766,5 @@ rm(opponent_encoded)
 ###################################
 ## save data for modeling
 saveRDS(object = original_sample, file = paste(path_Data, "original_sample.RDS", sep = "/"))
+
+original_sample$injured %>% sum() / original_sample %>% nrow()

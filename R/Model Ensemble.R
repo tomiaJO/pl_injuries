@@ -44,9 +44,9 @@ m_xgboost_down  <- readRDS(file = paste(path_Models, "m_xgboost_down.RDS", sep =
 
 pred_ensemble_train <- data.frame(
       "injured"         = data_train$injured,
-      "glm"             = predict.train(m_glm_down, newdata = data_train, type = "prob")[, "Yes", drop = T],
-      "GLMNet"          = predict.train(m_glmnet_down, newdata = data_train, type = "prob")[, "Yes", drop = T],
-      "Random Forest"   = predict.train(m_rf_down, newdata = data_train, type = "prob")[, "Yes", drop = T],
+      "glm"             = predict.train(m_glm_down,     newdata = data_train, type = "prob")[, "Yes", drop = T],
+      "GLMNet"          = predict.train(m_glmnet_down,  newdata = data_train, type = "prob")[, "Yes", drop = T],
+      "Random Forest"   = predict.train(m_rf_down,      newdata = data_train, type = "prob")[, "Yes", drop = T],
       "XGBOOST"         = predict.train(m_xgboost_down, newdata = data_train, type = "prob")[, "Yes", drop = T])
 
 cor(pred_ensemble_train[, c(2:5)])
@@ -54,24 +54,30 @@ cor(pred_ensemble_train[, c(2:5)])
 ctrl <- trainControl(method = "repeatedcv", 
                      repeats = 5,
                      classProbs = TRUE,
-                     summaryFunction = twoClassSummary)
+                     summaryFunction = twoClassSummary,
+                     sampling = "smote")
 
-ctrl$sampling = "down"
+tg_rf <- expand.grid(.mtry = c(2:4),
+                     .splitrule = "gini",
+                     .min.node.size = c(5, 10, 25, 100))
 
 set.seed(93)
 m_ensemble_down <- train(injured ~ .,
-                    data      = pred_ensemble_train,
-                    method    = "glm",
-                    family    = "binomial",
-                    metric    = "ROC",
-                    trControl = ctrl)
+                         data = pred_ensemble_train,
+                         method     = "ranger",
+                         metric     = "ROC",
+                         trControl  = ctrl,
+                         preProcess = c("center", "scale"),
+                         tuneGrid   = tg_rf,
+                         num.trees = 1000,
+                         importance = "impurity")
 
 
 pred_ensemble_test <- data.frame(
   "injured"         = data_test$injured,
-  "glm"             = predict.train(m_glm_down, newdata = data_test, type = "prob")[, "Yes", drop = T],
-  "GLMNet"          = predict.train(m_glmnet_down, newdata = data_test, type = "prob")[, "Yes", drop = T],
-  "Random Forest"   = predict.train(m_rf_down, newdata = data_test, type = "prob")[, "Yes", drop = T],
+  "glm"             = predict.train(m_glm_down,     newdata = data_test, type = "prob")[, "Yes", drop = T],
+  "GLMNet"          = predict.train(m_glmnet_down,  newdata = data_test, type = "prob")[, "Yes", drop = T],
+  "Random Forest"   = predict.train(m_rf_down,      newdata = data_test, type = "prob")[, "Yes", drop = T],
   "XGBOOST"         = predict.train(m_xgboost_down, newdata = data_test, type = "prob")[, "Yes", drop = T])
 
 pp_ens <- predict.train(m_ensemble_down, newdata = pred_ensemble_test, type = "prob")[, "Yes", drop = T]
