@@ -1,19 +1,6 @@
-## Import libraries
-library(tidyverse)
-library(caret)
-
-
-## Clean-up environment
-rm(list = ls())
-gc()
-
-## Import folder structure
-source("GlobalVariables.R")
-
-## Import performance evaulation functions
-source(paste(path_Functions, "f_calc_auc.R",         sep = "/"))
-source(paste(path_Functions, "f_roc_create.R",       sep = "/"))
-source(paste(path_Functions, "f_model_comparison.R", sep = "/"))
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Initialize R setup
+source("GlobalStartup.R")
 
 ## Load data_test
 data_test      <- readRDS(file = paste(path_Data, "data_test.RDS",        sep = "/"))

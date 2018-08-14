@@ -1,21 +1,8 @@
-## Import libraries
-library(tidyverse)
-library(caret)
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Initialize R setup
+source("GlobalStartup.R")
 
-
-## Clean-up environment
-rm(list = ls())
-gc()
-
-## Import folder structure
-source("GlobalVariables.R")
-
-## Import performance evaulation functions
-source(paste(path_Functions, "f_calc_auc.R",         sep = "/"))
-source(paste(path_Functions, "f_roc_create.R",       sep = "/"))
-source(paste(path_Functions, "f_model_comparison.R", sep = "/"))
-
-## Load data_test
+## Load data_train & data_test
 data_train     <- readRDS(file = paste(path_Data, "data_train.RDS",       sep = "/"))
 data_test      <- readRDS(file = paste(path_Data, "data_test.RDS",        sep = "/"))
 
@@ -49,8 +36,9 @@ m_xgboost_down  <- readRDS(file = paste(path_Models, "m_xgboost_down.RDS", sep =
 model_list <- list("Logit"         = m_glm_down,
                    "Probit"        = m_probit_down,
                    "GLMNet"        = m_glmnet_down,
-                   "Random Forest" = m_rf_down,
-                   "XGBoost"       = m_xgboost_down)
+                   "Random Forest" = m_rf_down,                   
+                   "XGBoost"       = m_xgboost_down
+                   )
 
 resamples_object <- resamples(model_list)
 

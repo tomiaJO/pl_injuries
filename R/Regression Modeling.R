@@ -1,50 +1,43 @@
-##SETUP
-require(caret)
-require(DMwR) ## used for SMOTE
-## library(ROSE) --> rose not working right now..
-require(doParallel)
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Initialize R setup
+source("GlobalStartup.R")
 
-
-#cleanup environment
-rm(list = ls())
-gc()
-
-
-#import folder structure
-source("GlobalVariables.R")
-
-
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## set parallel processing
 cl <- makePSOCKcluster(2)
 registerDoParallel(cl)
 
 
-## Read in prepared training & test sets
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## load training data
 data_train <- readRDS(paste(path_Data, "data_train.RDS", sep = "/"))
 
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Control function for caret
 ctrl <- trainControl(method = "repeatedcv", 
                      repeats = 5,
                      classProbs = TRUE,
                      summaryFunction = twoClassSummary)
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## MODELING FITTING & TUNING
 
 Sys.time()
 ######################################################
 ## NO SUB-SAMPLING
 ## GLM, no regularization
-set.seed(93)
-m_glm_no <- train(injured ~ .,
-                  data      = data_train,
-                  method    = "glm",
-                  family    = "binomial",
-                  metric    = "ROC",
-                  trControl = ctrl)
-
-saveRDS(object = m_glm_no, file = paste(path_Models, "m_glm_no.RDS", sep = "/"))
-rm(m_glm_no)
-Sys.time()
+# set.seed(93)
+# m_glm_no <- train(injured ~ .,
+#                   data      = data_train,
+#                   method    = "glm",
+#                   family    = "binomial",
+#                   metric    = "ROC",
+#                   trControl = ctrl)
+# 
+# saveRDS(object = m_glm_no, file = paste(path_Models, "m_glm_no.RDS", sep = "/"))
+# rm(m_glm_no)
+# Sys.time()
 
 ## GLMNET, lasso & ridge
 # set.seed(93)
@@ -86,31 +79,31 @@ Sys.time()
 ## GLM, no regularization
 ctrl$sampling = "down"
 
-set.seed(93)
-m_glm_down <- train(injured ~ .,
-                    data      = data_train,
-                    method    = "glm",
-                    family    = binomial(link = "logit"),
-                    metric    = "ROC",
-                    trControl = ctrl)
-
-saveRDS(object = m_glm_down, file = paste(path_Models, "m_glm_down.RDS", sep = "/"))
-rm(m_glm_down)
-Sys.time()
+# set.seed(93)
+# m_glm_down <- train(injured ~ .,
+#                     data      = data_train,
+#                     method    = "glm",
+#                     family    = binomial(link = "logit"),
+#                     metric    = "ROC",
+#                     trControl = ctrl)
+# 
+# saveRDS(object = m_glm_down, file = paste(path_Models, "m_glm_down.RDS", sep = "/"))
+# rm(m_glm_down)
+# Sys.time()
 
 
 ## PROBIT, no regularization
-set.seed(93)
-m_probit_down <- train(injured ~ .,
-                    data      = data_train,
-                    method    = "glm",
-                    family    = binomial(link = "probit"),
-                    metric    = "ROC",
-                    trControl = ctrl)
-
-saveRDS(object = m_probit_down, file = paste(path_Models, "m_probit_down.RDS", sep = "/"))
-rm(m_probit_down)
-Sys.time()
+# set.seed(93)
+# m_probit_down <- train(injured ~ .,
+#                     data      = data_train,
+#                     method    = "glm",
+#                     family    = binomial(link = "probit"),
+#                     metric    = "ROC",
+#                     trControl = ctrl)
+# 
+# saveRDS(object = m_probit_down, file = paste(path_Models, "m_probit_down.RDS", sep = "/"))
+# rm(m_probit_down)
+# Sys.time()
 
 
 ## GLMNET, lasso & ridge
@@ -130,34 +123,33 @@ Sys.time()
 
 
 ## RF
-# tg_rf <- expand.grid(.mtry = c(2:7),
-#                      .splitrule = "gini",
-#                      .min.node.size = c(10, 25, 100))
-# 
-# set.seed(93)
-# m_rf_down <- train(x = data_train[, names(data_train) != "injured"],
-#                        y = data_train$injured,
-#                        method     = "ranger",
-#                        metric     = "ROC",
-#                        trControl  = ctrl,
-#                        preProcess = c("center", "scale"),
-#                        tuneGrid   = tg_rf,
-#                        num.trees = 500,
-#                        importance = "impurity")
-# 
-# saveRDS(object = m_rf_down, file = paste(path_Models, "m_rf_down.RDS", sep = "/"))
-# rm(m_rf_down)
-# Sys.time()
+tg_rf <- expand.grid(.mtry = c(2:7),
+                     .splitrule = "gini",
+                     .min.node.size = c(25, 50, 100))
+
+set.seed(93)
+m_rf_down <- train(injured ~ .,
+                   data       = data_train,
+                   method     = "ranger",
+                   metric     = "ROC",
+                   trControl  = ctrl,
+                   tuneGrid   = tg_rf,
+                   num.trees = 500,
+                   importance = "impurity")
+
+saveRDS(object = m_rf_down, file = paste(path_Models, "m_rf_down.RDS", sep = "/"))
+rm(m_rf_down)
+Sys.time()
 
 
 ## XGBOOST
 # tg_xgb <- expand.grid(nrounds = 250,
-#                       max_depth = c(2:5),
+#                       max_depth = c(5),
 #                       eta = c(0.01, 0.05),
 #                       gamma = 0,
-#                       colsample_bytree = c(.25, .5, .75),
+#                       colsample_bytree = c(.25, .5),
 #                       min_child_weight = 1,
-#                       subsample = c(.25, .5, .75))
+#                       subsample = c(.25, .5))
 # 
 # set.seed(93)
 # m_xgboost_down <- train(injured ~ .,
@@ -176,17 +168,17 @@ Sys.time()
 ## GLM, no regularization
 ctrl$sampling = "up"
 
-set.seed(93)
-m_glm_up <- train(injured ~ .,
-                  data      = data_train,
-                  method    = "glm",
-                  family    = "binomial",
-                  metric    = "ROC",
-                  trControl = ctrl)
-
-saveRDS(object = m_glm_up, file = paste(path_Models, "m_glm_up.RDS", sep = "/"))
-rm(m_glm_up)
-Sys.time()
+# set.seed(93)
+# m_glm_up <- train(injured ~ .,
+#                   data      = data_train,
+#                   method    = "glm",
+#                   family    = "binomial",
+#                   metric    = "ROC",
+#                   trControl = ctrl)
+# 
+# saveRDS(object = m_glm_up, file = paste(path_Models, "m_glm_up.RDS", sep = "/"))
+# rm(m_glm_up)
+# Sys.time()
 
 
 ## GLMNET, lasso & ridge
@@ -229,17 +221,17 @@ Sys.time()
 ## GLM, no regularization
 ctrl$sampling = "smote"
 
-set.seed(93)
-m_glm_smote <- train(injured ~ .,
-                     data      = data_train,
-                     method    = "glm",
-                     family    = "binomial",
-                     metric    = "ROC",
-                     trControl = ctrl)
-
-saveRDS(object = m_glm_smote, file = paste(path_Models, "m_glm_smote.RDS", sep = "/"))
-rm(m_glm_smote)
-Sys.time()
+# set.seed(93)
+# m_glm_smote <- train(injured ~ .,
+#                      data      = data_train,
+#                      method    = "glm",
+#                      family    = "binomial",
+#                      metric    = "ROC",
+#                      trControl = ctrl)
+# 
+# saveRDS(object = m_glm_smote, file = paste(path_Models, "m_glm_smote.RDS", sep = "/"))
+# rm(m_glm_smote)
+# Sys.time()
 
 
 ## GLMNET, lasso & ridge
@@ -259,22 +251,19 @@ Sys.time()
 
 
 ## RF
-# tg_rf <- data.frame(mtry = c(2:7))
-# 
-# set.seed(93)
-# m_rf_smote <- train(x = data_train[, names(data_train) != "injured"],
-#                  y = data_train$injured,
-#                  method     = "rf",
-#                  metric     = "ROC",
-#                  trControl  = ctrl,
-#                  preProcess = c("center", "scale"), 
-#                  tuneGrid   = tg_rf,
-#                  ntree      = 500,
-#                  importance = T)
-# 
-# saveRDS(object = m_rf_smote, file = paste(path_Models, "m_rf_smote.RDS", sep = "/"))
-# rm(m_rf_smote)
-# Sys.time()
+set.seed(93)
+m_rf_smote <- train(injured ~ .,
+                    data       = data_train,
+                    method     = "ranger",
+                    metric     = "ROC",
+                    trControl  = ctrl,
+                    tuneGrid   = tg_rf,
+                    num.trees = 500,
+                    importance = "impurity")
+
+saveRDS(object = m_rf_smote, file = paste(path_Models, "m_rf_smote.RDS", sep = "/"))
+rm(m_rf_smote)
+Sys.time()
 
 
 Sys.time()

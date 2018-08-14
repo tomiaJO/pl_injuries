@@ -1,39 +1,14 @@
-## Library imports
-require(tidyverse)
-require(caret)
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Initialize R setup
+source("GlobalStartup.R")
 
-
-## cleanup environment
-rm(list = ls())
-gc()
-
-
-## import folder structure
-source("GlobalVariables.R")
-
-
-## Set saving of figures
-save_plots <- FALSE
-
-
-## Import correlation matrix functions
-source(paste(path_Functions, "correl_functions.R",        sep = "/"))
-
-
-## Import ggplot themes
-source(paste(path_Functions, "ggplot_themes.R",           sep = "/"))
-
-
-## Import plotting functions
-source(paste(path_Functions, "f_conditional_ggsave.R",    sep = "/"))
-source(paste(path_Functions, "f_plot_cormat.R",           sep = "/"))
-
-
-## Read in prepared file
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Load Data
 original_sample <- readRDS(file = paste(path_Data, "original_sample.RDS", sep = "/"))
 #original_sample %>% View()
 
-## Remove base encoding columns for categoricals:
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## DROP base encoding columns for categoricals:
 original_sample <- original_sample %>%
                      select(-Position_Midfielder, 
                             -Foot_Right, 
@@ -46,10 +21,13 @@ original_sample <- original_sample %>%
                             -Team_Chelsea,
                             -Opponent_Chelsea)
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## DROP "all_" variables
+original_sample <- original_sample %>%
+                    select(-starts_with("all_"))
 
-## Correlation based removals
-###################################
-####  Check for correlations
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## VISUALIZE correlations
 ## source: http://www.sthda.com/english/wiki/ggplot2-quick-correlation-matrix-heatmap-r-software-and-data-visualization
 
 ## Among games played in season
@@ -68,9 +46,7 @@ f_conditional_ggsave(save = save_plots,
                      w = 6, 
                      h = 7)
 
-## dropping "all_" variables
-original_sample <- original_sample %>%
-                    select(-starts_with("all_"))
+
 
 ## Among PL games played variables
 p_correl_pl_nonpl <- original_sample %>% 
@@ -92,7 +68,8 @@ f_conditional_ggsave(save = save_plots,
                      h = 7)
 ## note: no too high correlations! many decorrelated items, great thing
 
-## add polinomials
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## ADD polinomials
 original_sample <- original_sample %>%
                     mutate(`Age (Years) - SQ`     = `Age (Years)` ^ 2,
                            `Height (cm) - SQ`     = `Height (cm)` ^ 2,
@@ -107,11 +84,11 @@ original_sample <- original_sample %>%
                            pl_games_4_sq          = pl_games_4 ^ 2,      
                            non_pl_games_4_sq      = non_pl_games_4 ^ 2)
 
-
-##########################
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Target needs to be factor for classification with caret
 original_sample$injured <- factor(original_sample$injured, levels = c("1", "0"), labels = c("Yes", "No"))
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## set aside Year 2017 for performance testing
 training_set    <- original_sample %>% 
                      filter(Year < 2017)
@@ -119,84 +96,98 @@ training_set    <- original_sample %>%
 performance_set <- original_sample %>% 
                      filter(Year == 2017)
 
-
-## remove variables should not be in the predictive model
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## REMOVE variables that should not be in the predictive model
 training_set <- training_set %>%
                   select(-mid, -pid, -Year)
 
 training_set <- training_set %>%
                   select(-injury_length)
 
-#######################################################
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Create training & test sets
 training_ratio <- 0.70
 
+## injured
 set.seed(93)
 train_indices <- createDataPartition(y = training_set[["injured"]],
                                      times = 1,
                                      p = training_ratio,
                                      list = FALSE)
 
-data_train <- training_set[train_indices,  ] %>% as.data.frame()
+data_train <- training_set[train_indices,  ] %>% 
+                select(-injured_7days, -injured_14days, -injured_21days, -injured_28days) %>% 
+                as.data.frame()
+
 data_test  <- training_set[-train_indices, ] %>% as.data.frame()
 
+## 7 days
+set.seed(93)
+train_indices <- createDataPartition(y = training_set[["injured_7days"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
 
-#######################################################
+data_train_7 <- training_set[train_indices,  ] %>% 
+                  select(-injured, -injured_14days, -injured_21days, -injured_28days) %>% 
+                  as.data.frame()
+
+data_test_7  <- training_set[-train_indices, ] %>% as.data.frame()
+
+## 14 days
+set.seed(93)
+train_indices <- createDataPartition(y = training_set[["injured_14days"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
+
+data_train_14 <- training_set[train_indices,  ] %>% 
+                    select(-injured_7days, -injured, -injured_21days, -injured_28days) %>% 
+                    as.data.frame()
+
+data_test_14  <- training_set[-train_indices, ] %>% as.data.frame()
+
+## 21 days
+set.seed(93)
+train_indices <- createDataPartition(y = training_set[["injured_21days"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
+
+data_train_21 <- training_set[train_indices,  ] %>% 
+                    select(-injured_7days, -injured_14days, -injured, -injured_28days) %>% 
+                    as.data.frame()
+
+data_test_21  <- training_set[-train_indices, ] %>% as.data.frame()
+
+## 28 days
+set.seed(93)
+train_indices <- createDataPartition(y = training_set[["injured_28days"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
+
+data_train_28 <- training_set[train_indices,  ] %>% 
+                    select(-injured_7days, -injured_14days, -injured_21days, -injured) %>% 
+                    as.data.frame()
+
+data_test_28  <- training_set[-train_indices, ] %>% as.data.frame()
+
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Save dfs
 saveRDS(object = data_train,      file = paste(path_Data, "data_train.RDS",      sep = "/"))
 saveRDS(object = data_test,       file = paste(path_Data, "data_test.RDS",       sep = "/"))
 saveRDS(object = performance_set, file = paste(path_Data, "data_perfomance.RDS", sep = "/"))
 
+saveRDS(object = data_train_7,    file = paste(path_Data, "data_train_7.RDS",    sep = "/"))
+saveRDS(object = data_test_7,     file = paste(path_Data, "data_test_7.RDS",     sep = "/"))
 
+saveRDS(object = data_train_14,   file = paste(path_Data, "data_train_14.RDS",   sep = "/"))
+saveRDS(object = data_test_14,    file = paste(path_Data, "data_test_14.RDS",    sep = "/"))
 
+saveRDS(object = data_train_21,   file = paste(path_Data, "data_train_21.RDS",   sep = "/"))
+saveRDS(object = data_test_21,    file = paste(path_Data, "data_test_21.RDS",    sep = "/"))
 
-
-# ### NOT USED ###
-# ## last check before take-off
-# any(is.na(training_set))
-# any(is.nan(training_set %>% as.matrix()))
-# any(is.finite(training_set %>% as.matrix()))
-
-# ##source: https://www.analyticsvidhya.com/blog/2017/03/imbalanced-classification-problem/
-# ## Question: weighting?
-# ## Question: de-noising/autoencoders?
-# 
-# 
-# ##########################
-# ##########################
-# ## SAMPLING
-# injured_ind    <- which(for_sampling$injured == 1)
-# noninjured_ind <- which(for_sampling$injured == 0)
-# 
-# ##########################
-# ## 1. Random Under-Sampling
-# ## source: https://stackoverflow.com/questions/48981550/what-is-the-best-way-of-under-sampling-in-r
-# 
-# sample_size <- length(injured_ind) * 4  #80% will be non-injured
-# pick_noninjured <- sample(x = noninjured_ind, size = sample_size, replace = FALSE)
-# 
-# under_sample <- for_sampling[c(injured_ind, pick_noninjured), ]
-# 
-# saveRDS(object = under_sample, file = paste(path_Data, "under_sample.RDS", sep = "/"))
-# 
-# ##########################
-# ## 2. Random Over-Sampling
-# 
-# sample_size <- length(noninjured_ind) * 0.25  #20% will be injured
-# pick_injured <- sample(x = injured_ind, size = sample_size, replace = TRUE)
-# 
-# over_sample <- for_sampling[c(pick_injured, noninjured_ind), ]
-# 
-# saveRDS(object = over_sample, file = paste(path_Data, "over_sample.RDS", sep = "/"))
-# 
-# 
-# ##########################
-# ## 3. Group-Based Over Sampling
-# 
-# 
-# ##########################
-# ## 4. Synthetic Minority Over-sampling Technique (SMOTE)
-# 
-# 
-# ##########################
-# ## 5. Modified synthetic minority oversampling technique (MSMOTE)
+saveRDS(object = data_train_28,   file = paste(path_Data, "data_train_28.RDS",   sep = "/"))
+saveRDS(object = data_test_28,    file = paste(path_Data, "data_test_28.RDS",    sep = "/"))
