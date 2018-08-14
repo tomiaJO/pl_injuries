@@ -61,10 +61,8 @@ Unfortunately soccer injuries come in many different formats and can be a wide r
 
 The aim in this project is not to predict all possible injury types. The goal is to help decision makers (coaching staff) monitor the players' physical condition, and manage their playing time if neccessary for avoiding injuries.  
 
-<span style="color:red">##TODO: chart titles, grid. highlight injuries in scopes</span> 
-```{r, out.width = '50%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/2. Injury types.jpeg")
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/3. Injury Lengths.jpeg") 
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/3. Injury types.jpeg")
 ```
 
 Any successful prediction exercise would need to make sure that the event being predicted does have a statistical connection to the predictors. For many injury types, we know that their occurance unrelated outside conditions (at least to our current knowledge). Examples include knocks, concussions, etc. This analysis is not interested in these.  
@@ -132,6 +130,8 @@ Below is a comprehensive list of all variables created during the data preparati
 ## Exploratory Analysis {.tabset} 
 
 ### Intro, explain chart types
+
+<span style="color:red">##TODO</span> 
 
 ### By physical attributes - age, height, weight, BMI
 ```{r, out.width = '75%', fig.align = 'center'}
@@ -215,6 +215,31 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs 
 # Modeling  
 ## Methodology {.tabset}  
 ### Separation of data sets  
+
+Year 2017 is set aside for final performance evaluation:  
+```{r, eval = FALSE, echo = TRUE}
+training_set    <- original_sample %>% 
+                     filter(Year < 2017)
+
+performance_set <- original_sample %>% 
+                     filter(Year == 2017)
+```
+
+
+Data from other years is split into a training and test set, based on a standard 70% - 30% split:  
+```{r, eval = FALSE, echo = TRUE}
+training_ratio <- 0.70
+
+train_indices <- createDataPartition(y = training_set[["injured"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
+
+data_train <- training_set[train_indices,  ] %>% as.data.frame()
+data_test  <- training_set[-train_indices, ] %>% as.data.frame()
+```
+
+
 ### The problem of class imbalance   
 
 Based on the previous definition of "injured", the cleaned data set consist of only 1% of positive cases.  
