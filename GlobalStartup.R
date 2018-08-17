@@ -8,6 +8,9 @@ require(caret)
 require(DMwR) ## used for SMOTE
 ## library(ROSE) --> rose not working right now..
 require(doParallel)
+library(MLmetrics)
+library(extrafont)
+
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Cleanup environment
@@ -29,4 +32,4 @@ file.sources <- list.files(path        = path_Functions,
                            full.names  = TRUE, 
                            ignore.case = TRUE)
 
-sapply(x = file.sources, FUN = source)
+sapply(X = file.sources, FUN = source)
