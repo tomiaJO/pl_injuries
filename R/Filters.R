@@ -4,7 +4,7 @@ source("GlobalStartup.R")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load data
-injuries          <- fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
+injuries <- fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
 
 
 
@@ -299,3 +299,9 @@ f_conditional_ggsave(save = save_plots,
                      filepath = paste(F, "5. Injury rates vs PL season minutes.jpeg", sep = "/"), 
                      w = 6, 
                      h = 4.5)
+
+
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## SAVE data
+saveRDS(object = injuries, file = paste(path_Data, "injuries.RDS", sep = "/"))

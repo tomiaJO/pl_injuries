@@ -21,9 +21,7 @@ m_glmnet_down  <- readRDS(file = paste(path_Models, "m_glmnet_down.RDS",  sep = 
 
 ## RF
 m_rf_down      <- readRDS(file = paste(path_Models, "m_rf_down.RDS",      sep = "/"))
-
-## GBM --> 3.5 hours
-#m_gbm_down     <- readRDS(file = paste(path_Models, "m_gbm_down.RDS",     sep = "/"))
+m_rf_smote     <- readRDS(file = paste(path_Models, "m_rf_smote.RDS",      sep = "/"))
 
 ## XGBOOST
 m_xgboost_down  <- readRDS(file = paste(path_Models, "m_xgboost_down.RDS", sep = "/"))
@@ -36,7 +34,8 @@ m_xgboost_down  <- readRDS(file = paste(path_Models, "m_xgboost_down.RDS", sep =
 model_list <- list("Logit"         = m_glm_down,
                    "Probit"        = m_probit_down,
                    "GLMNet"        = m_glmnet_down,
-                   "Random Forest" = m_rf_down,                   
+                   "Random Forest" = m_rf_down,
+##                 "RF"            = m_rf_smote,
                    "XGBoost"       = m_xgboost_down
                    )
 
@@ -89,42 +88,11 @@ ggsave(filename = paste(path_Figures, "9999. ROC Curve achieved by different mod
 
 ####################################
 ## Variable Importance
-vi_xgboost_down <- varImp(m_xgboost_down, scale = TRUE)$importance %>% 
-                     mutate("Variable" = row.names(.)) %>%
-                     rename("XGBoost" = "Overall") %>%
-                     select(Variable, XGBoost)
-
-vi_rf_down      <- varImp(m_rf_down, scale = TRUE)$importance %>% 
-                      mutate("Variable" = row.names(.)) %>%
-                      rename("Random Forest" = "Overall")
-
-vi_glmnet_down  <- varImp(m_glmnet_down, scale = TRUE)$importance %>% 
-                     mutate("Variable" = row.names(.)) %>%
-                     rename("GLMNet" = "Overall")
-
-vi_probit_down  <- varImp(m_probit_down, scale = TRUE)$importance %>% 
-                     mutate("Variable" = row.names(.)) %>%
-                     rename("Probit" = "Overall")
-
-vi_logit_down   <- varImp(m_glm_down, scale = TRUE)$importance %>% 
-                     mutate("Variable" = row.names(.)) %>%
-                     rename("Logit" = "Overall")
-
-variable_importance <- vi_xgboost_down %>%
-                        left_join(vi_rf_down,      by = c("Variable" = "Variable")) %>%
-                        left_join(vi_glmnet_down,  by = c("Variable" = "Variable"))
-                        # left_join(vi_probit_down,  by = c("Variable" = "Variable")) %>%
-                        # left_join(vi_logit_down,   by = c("Variable" = "Variable")) %>%
-
-variable_importance <- cbind(variable_importance, `Avg. Importance` = rowMeans(variable_importance[, 2:4], na.rm=TRUE))
-variable_importance <- variable_importance %>%
-                        mutate(Variable = reorder(Variable, `XGBoost`))
+variable_importance <- f_variable_importance(model_list)
+# variable_importance %>% View()
 
 p_vi <- variable_importance %>%
-          top_n(15, `Avg. Importance`) %>%
-          select(-`Avg. Importance`) %>%
-          tidyr::gather(key = "Model", value = "Importance", -Variable) %>%
-          mutate(Importance = ifelse(is.na(Importance), 0, Importance)) %>%
+          filter(Importance > 50) %>%
           ggplot(aes(x = Variable, y = Importance, color = Model)) +
             geom_line(aes(group = Variable), color = "grey", size = 1.5) +  
             geom_point(size = 3.5) +
