@@ -4,8 +4,8 @@ source("GlobalStartup.R")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load data
-injuries          <- fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
-country_to_region <- fread(paste(path_Data,    "country_to_region.csv",  sep = "/"))
+injuries          <- readRDS(file = paste(path_Data, "injuries.RDS", sep = "/"))
+country_to_region <- fread(paste(path_Data, "country_to_region.csv", sep = "/"))
 
 
 
@@ -70,12 +70,24 @@ injuries <- injuries %>%
 injuries <- injuries %>%
               mutate(non_pl_games_season = all_games_season - pl_games_season,
                      non_pl_games_28     = all_games_28     - pl_games_28,
-                     non_pl_games_4      = all_games_14     - pl_games_14,
+                     non_pl_games_14     = all_games_14     - pl_games_14,
                      non_pl_games_4      = all_games_4      - pl_games_4,
                      non_pl_min_season   = all_mins_season  - pl_mins_season,
                      non_pl_min_28       = all_mins_28      - pl_mins_28,
                      non_pl_min_14       = all_mins_14      - pl_mins_14,
                      non_pl_min_4        = all_mins_4       - pl_mins_4)
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## ADD avg. minutes
+injuries <- injuries %>% 
+              mutate(pl_avgmin_season     = ifelse(pl_games_season     == 0, 0, pl_mins_season    / pl_games_season),
+                     pl_avgmin_28         = ifelse(pl_games_28         == 0, 0, pl_mins_28        / pl_games_28),
+                     pl_avgmin_14         = ifelse(pl_games_14         == 0, 0, pl_mins_14        / pl_games_28),
+                     pl_avgmin_4          = ifelse(pl_games_4          == 0, 0, pl_mins_4         / pl_games_4),
+                     non_pl_avgmin_season = ifelse(non_pl_games_season == 0, 0, non_pl_min_season / non_pl_games_season),
+                     non_pl_avgmin_28     = ifelse(non_pl_games_28     == 0, 0, non_pl_min_28     / non_pl_games_28),
+                     non_pl_avgmin_14     = ifelse(non_pl_games_14     == 0, 0, non_pl_min_14     / non_pl_games_28),
+                     non_pl_avgmin_4      = ifelse(non_pl_games_4      == 0, 0, non_pl_min_4      / non_pl_games_4))
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ADD player history
@@ -104,28 +116,28 @@ injuries <- injuries %>%
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ADD future injury columns
-# future_7days  <- f_future_injury(df = injuries, days_forward = 7)
-# future_7days  <- future_7days %>% 
-#                   rename("injured_7days"  = "injured_future")
-# 
-# future_14days <- f_future_injury(df = injuries, days_forward = 14)
-# future_14days <- future_14days %>% 
-#                   rename("injured_14days" = "injured_future")
-# 
-# future_21days <- f_future_injury(df = injuries, days_forward = 21)
-# future_21days <- future_21days %>% 
-#                   rename("injured_21days" = "injured_future")
-# 
-# future_28days <- f_future_injury(df = injuries, days_forward = 28)
-# future_28days <- future_28days %>% 
-#                   rename("injured_28days" = "injured_future")
-# 
-# injuries <- injuries %>%
-#               left_join(future_7days,  by = c("pid", "Date")) %>%
-#               left_join(future_14days, by = c("pid", "Date")) %>%
-#               left_join(future_21days, by = c("pid", "Date")) %>%
-#               left_join(future_28days, by = c("pid", "Date")) %>%
-#               select(injured, injured_7days, injured_14days, injured_21days, injured_28days, everything()) 
+future_7days  <- f_future_injury(df = injuries, days_forward = 7)
+future_7days  <- future_7days %>%
+                  rename("injured_7days"  = "injured_future")
+
+future_14days <- f_future_injury(df = injuries, days_forward = 14)
+future_14days <- future_14days %>%
+                  rename("injured_14days" = "injured_future")
+
+future_21days <- f_future_injury(df = injuries, days_forward = 21)
+future_21days <- future_21days %>%
+                  rename("injured_21days" = "injured_future")
+
+future_28days <- f_future_injury(df = injuries, days_forward = 28)
+future_28days <- future_28days %>%
+                  rename("injured_28days" = "injured_future")
+
+injuries <- injuries %>%
+              left_join(future_7days,  by = c("pid", "Date")) %>%
+              left_join(future_14days, by = c("pid", "Date")) %>%
+              left_join(future_21days, by = c("pid", "Date")) %>%
+              left_join(future_28days, by = c("pid", "Date")) %>%
+              select(injured, injured_7days, injured_14days, injured_21days, injured_28days, everything())
 
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -434,10 +446,10 @@ original_sample <- injuries %>%
                              pid,
                              Year,
                              injured,
-                             # injured_7days,
-                             # injured_14days,
-                             # injured_21days,
-                             # injured_28days,
+                             injured_7days,
+                             injured_14days,
+                             injured_21days,
+                             injured_28days,
                              injury_length,
                              `Kick-off`, 
                              Team,
