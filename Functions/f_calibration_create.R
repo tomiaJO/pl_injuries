@@ -1,26 +1,34 @@
-fun_calibration_create <- function(prediction_probs, truth, model= NULL) {
+f_calibration_create <- function(score, truth) {
   
   truth_numeric <- ifelse(truth == "Yes", 1, 0)
-  score <- prediction_probs$Yes
   
-  actual_vs_predicted <- data.table(actual = truth_numeric,
-                                    predicted = score)
+  actual_vs_predicted <- data.frame("actual" = truth_numeric, 
+                                    "predicted" = score)
   
-  actual_vs_predicted[, score_category := cut(predicted,
-                                              seq(0, .25, 0.005),
-                                              include.lowest = TRUE)]
+  min_prob <- min(score)
+  max_prob <- max(score)
   
-  calibration <- actual_vs_predicted[, .(mean_actual = mean(actual),
-                                         mean_predicted = mean(predicted),
-                                         num_obs = .N),
-                                     keyby = .(score_category)]
+  actual_vs_predicted <- actual_vs_predicted %>%
+                          mutate(score_category = cut(predicted, 
+                                                      seq(min_prob, max_prob, (max_prob - min_prob) / 20), 
+                                                      include.lowest = TRUE))
   
-  s_title <- ifelse(is.null(model), "", paste("Calibration plot for Model:", model, sep = " "))
+  calibration <- actual_vs_predicted %>%
+                  group_by(score_category) %>%
+                  summarize(mean_actual = mean(actual),
+                            mean_predicted = mean(predicted),
+                            num_obs = n()) %>%
+                  ungroup()
   
-  ggplot(calibration,
-         aes(x = mean_actual, y = mean_predicted, size = num_obs)) +
-    geom_point() +
-    geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
-    ylim(0, 0.25) + xlim(0, 0.25) +
-    labs(title = s_title)
+  max_pred   <- max(calibration$mean_predicted)
+  max_actual <- max(calibration$mean_actual)
+  
+  p <- ggplot(calibration, aes(x = mean_actual, y = mean_predicted, size = num_obs)) +
+        geom_point(alpha = 0.8) +
+        geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+        scale_y_continuous(limits = c(0, max(c(max_pred, max_actual)))) +
+        scale_x_continuous(limits = c(0, max(c(max_pred, max_actual)))) +
+        technical_theme()
+  
+  return(list("plot" = p, "data" = calibration))
 }

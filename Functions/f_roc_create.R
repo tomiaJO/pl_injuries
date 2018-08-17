@@ -1,9 +1,9 @@
-f_roc_create <- function(pp, truth) {
+f_roc_create <- function(pp, truth, plot = TRUE) {
   
   min_prob <- min(pp)
   max_prob <- max(pp)
   
-  thresholds <- seq(0, max_prob, by = (max_prob - min_prob) / 100)
+  thresholds <- seq(min_prob, max_prob, by = (max_prob - min_prob) / 100)
   
   tpr <- rep(0, length(thresholds))
   fpr <- rep(0, length(thresholds))
@@ -31,11 +31,17 @@ f_roc_create <- function(pp, truth) {
   manual_roc <- do.call("rbind", manual_roc)
   
   
-  ggplot(data = manual_roc, aes(x = FPR, y = TPR)) +
-    geom_line(aes(color = Model), size = 1.25) +
-    geom_abline(intercept = 0, slope = 1,  linetype = "dotted", col = "black") +
-    labs(title = "ROC curve",
-         x     = "FPR",
-         y     = "TPR") +
-    theme_minimal()
+  p <- ggplot(data = manual_roc, aes(x = FPR, y = TPR)) +
+        geom_line(aes(color = Model), size = 1.25) +
+        geom_abline(intercept = 0, slope = 1,  linetype = "dotted", col = "black") +
+        labs(title = "ROC curve",
+             x     = "Specificy (TNR)",
+             y     = "Sensitivity (TPR)") +
+        theme_minimal()
+  
+  if(plot) {
+    return(p)
+  } else {
+    return(manual_roc)
+  }
 }

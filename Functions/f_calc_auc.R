@@ -12,3 +12,5 @@ f_calc_auc <- function(pp, truth) {
   
   return(AUC)
 }
+
+?ROCR::performance

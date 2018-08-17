@@ -7,7 +7,8 @@ technical_theme <- function(){
           plot.caption  = element_text(color = "gray60")) +
     theme(axis.title.x = element_text(hjust = 0.36)) +
     theme(axis.title.x =  element_text(hjust = 1, size = 8),
-          axis.title.y =  element_text(hjust = 1, size = 8))
+          axis.title.y =  element_text(hjust = 1, size = 8)) +
+    theme(text=element_text(family = "Garamond"))
 }
 
 story_theme <- function() {
