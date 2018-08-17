@@ -107,6 +107,7 @@ Records with missing position were also remove - upon structural investigation, 
 
 * Foot
 * Games (or minutes) played
+* Height & Weight
 
 ## Feature Engineering
 
