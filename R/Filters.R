@@ -7,13 +7,17 @@ source("GlobalStartup.R")
 injuries <- fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
 
 
-
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## FIX Date
 injuries <- injuries %>%
               mutate(Date = as.Date(Date, "%Y-%m-%d"),
                      `Date of birth` = as.Date(`Date of birth`, "%Y-%m-%d")) %>%
               mutate(`Age (Years)` = time_length(difftime(Date, `Date of birth`), "years")) 
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## ADD Year
+injuries <- injuries %>%
+              mutate(Year = year(Date))
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## FIX home
