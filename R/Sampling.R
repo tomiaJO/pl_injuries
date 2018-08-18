@@ -153,6 +153,7 @@ train_indices <- createDataPartition(y = training_set[["injured_14days"]],
                                      list = FALSE)
 
 data_train_14 <- training_set[train_indices,  ] %>% 
+                  select(-injured, -injured_7days, -injured_21days, -injured_28days) %>%
                   select(-mid, -pid, -Year) %>%
                   select(-injury_length) %>% 
                   as.data.frame()
@@ -167,6 +168,7 @@ train_indices <- createDataPartition(y = training_set[["injured_21days"]],
                                      list = FALSE)
 
 data_train_21 <- training_set[train_indices,  ] %>% 
+                  select(-injured, -injured_7days, -injured_14days, -injured_28days) %>%
                   select(-mid, -pid, -Year) %>%
                   select(-injury_length) %>% 
                   as.data.frame()
@@ -181,6 +183,7 @@ train_indices <- createDataPartition(y = training_set[["injured_28days"]],
                                      list = FALSE)
 
 data_train_28 <- training_set[train_indices,  ] %>% 
+                  select(-injured, -injured_7days, -injured_14days, -injured_21days) %>%
                   select(-mid, -pid, -Year) %>%
                   select(-injury_length) %>% 
                   as.data.frame()
