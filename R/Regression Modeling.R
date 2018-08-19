@@ -19,7 +19,7 @@ ctrl <- trainControl(  method = "cv"
                      , summaryFunction = twoClassSummary
                      , allowParallel = T
                      )
-
+#data_train$home <- data_train$home %>% as.numeric()
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## LOGIT
 f_fit_logit <- function() {
@@ -44,12 +44,12 @@ f_fit_probit <- function() {
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## GLMNET
-tg_glmnet <- expand.grid(alpha = c(0:30 / 100),
-                         lambda = c(0:30 / 100))
+tg_glmnet <- expand.grid(alpha  = c(1:10 / 100),
+                         lambda = c(1:10 / 100))
 
 f_fit_glmnet <- function() {
-  train(x = data_train[, names(data_train) != "injured"],
-        y = data_train$injured,
+  train(injured ~ .,
+        data = data_train[, names(data_train) != "home"],
         method     = "glmnet",
         family     = "binomial",
         metric     = "ROC",
@@ -60,30 +60,30 @@ f_fit_glmnet <- function() {
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## RF
-tg_rf <- expand.grid(.mtry = c(6:16),
-                     .splitrule = "gini",
-                     .min.node.size = c(1:7 * 25))
+tg_rf <- expand.grid(.mtry          = c(5:7),
+                     .splitrule     = "gini",
+                     .min.node.size = c(4:8 * 25))
 
 f_fit_rf <- function() {
   train(x = data_train[, names(data_train) != "injured"],
         y = data_train$injured,
         method     = "ranger",
-        metric     = "Sens",
+        metric     = "ROC",
         trControl  = ctrl,
         tuneGrid   = tg_rf,
-        num.trees  = 1500,
+        num.trees  = 1000,
         importance = "impurity")
 }
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## XGBOOST
-tg_xgb <- expand.grid(nrounds = c(250, 500),
-                      max_depth = c(5, 10, 15),
-                      eta = c(0.1, 0.15, 0.2),
-                      gamma = c(0, .25),
-                      colsample_bytree = c(5:10 / 10),
-                      min_child_weight = c(1, 2, 3),
-                      subsample = c(5:10 / 10))
+tg_xgb <- expand.grid(nrounds          = c(250),
+                      max_depth        = c(5, 10),
+                      eta              = c(0.1),
+                      gamma            = c(0.1),
+                      colsample_bytree = c(4:6 / 10),
+                      min_child_weight = c(2, 3, 4),
+                      subsample        = c(7:9 / 10))
 
 f_fit_xgboost <- function() {
   train(injured ~ .,
@@ -116,21 +116,21 @@ Sys.time()
 ## GLM, no regularization
 ctrl$sampling = "down"
 
-set.seed(93)
-m_logit_down <- f_fit_logit()
-
-saveRDS(object = m_logit_down, file = paste(path_Models, "m_logit_down.RDS", sep = "/"))
-rm(m_logit_down)
-Sys.time()
+# set.seed(93)
+# m_logit_down <- f_fit_logit()
+# 
+# saveRDS(object = m_logit_down, file = paste(path_Models, "m_logit_down.RDS", sep = "/"))
+# rm(m_logit_down)
+# Sys.time()
 
 
 ## PROBIT, no regularization
-set.seed(93)
-m_probit_down <- f_fit_probit()
-
-saveRDS(object = m_probit_down, file = paste(path_Models, "m_probit_down.RDS", sep = "/"))
-rm(m_probit_down)
-Sys.time()
+# set.seed(93)
+# m_probit_down <- f_fit_probit()
+# 
+# saveRDS(object = m_probit_down, file = paste(path_Models, "m_probit_down.RDS", sep = "/"))
+# rm(m_probit_down)
+# Sys.time()
 
 
 ## GLMNET, lasso & ridge
@@ -164,7 +164,7 @@ Sys.time()
 ## GLM, no regularization
 ctrl$sampling = "up"
 
-## RF
+# ## RF
 # set.seed(93)
 # m_rf_up <- f_fit_rf()
 # 
@@ -178,6 +178,23 @@ ctrl$sampling = "up"
 ## GLM, no regularization
 ctrl$sampling = "smote"
 
+set.seed(93)
+m_logit_smote <- f_fit_logit()
+
+saveRDS(object = m_logit_smote, file = paste(path_Models, "m_logit_smote.RDS", sep = "/"))
+rm(m_logit_smote)
+Sys.time()
+
+
+## PROBIT, no regularization
+set.seed(93)
+m_probit_smote <- f_fit_probit()
+
+saveRDS(object = m_probit_smote, file = paste(path_Models, "m_probit_smote.RDS", sep = "/"))
+rm(m_probit_smote)
+Sys.time()
+
+
 ## RF
 # set.seed(93)
 # m_rf_smote <- f_fit_rf()
@@ -186,6 +203,23 @@ ctrl$sampling = "smote"
 # rm(m_rf_smote)
 # Sys.time()
 
+
+## XGBOOST
+# set.seed(93)
+# m_xgboost_smote <- f_fit_xgboost()
+# 
+# saveRDS(object = m_xgboost_smote, file = paste(path_Models, "m_xgboost_smote.RDS", sep = "/"))
+# rm(m_xgboost_smote)
+# Sys.time()
+
+
+## GLMNET, lasso & ridge
+# set.seed(93)
+# m_glmnet_smote <- f_fit_glmnet()
+# 
+# saveRDS(object = m_glmnet_smote, file = paste(path_Models, "m_glmnet_smote.RDS", sep = "/"))
+# rm(m_glmnet_smote)
+# Sys.time()
 
 Sys.time()
 stopCluster(cl)

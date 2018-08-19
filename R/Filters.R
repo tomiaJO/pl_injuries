@@ -4,7 +4,7 @@ source("GlobalStartup.R")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load data
-injuries <- fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
+injuries <- data.table::fread(paste(path_RawData, "injury_data_pg.csv",     sep = "/"))
 
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -250,7 +250,7 @@ injuries <- injuries %>%
               filter(!is.na(all_mins_season))
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## NOT REMOVE: NA small playing times
+## NOT REMOVE: small playing times
 season_min_cutoff <- 180
 
 tmp <- injuries %>%
@@ -300,7 +300,7 @@ p_by_minutes <- p_by_minutes +
 
 f_conditional_ggsave(save = save_plots, 
                      p = p_by_minutes, 
-                     filepath = paste(F, "5. Injury rates vs PL season minutes.jpeg", sep = "/"), 
+                     filepath = paste(path_Figures, "5. Injury rates vs PL season minutes.jpeg", sep = "/"), 
                      w = 6, 
                      h = 4.5)
 

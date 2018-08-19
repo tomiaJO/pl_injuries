@@ -14,10 +14,10 @@ model_smote    <- readRDS(file = paste(path_Models, "m_rf_smote.RDS",     sep = 
 
 #####################################
 ## SUB-SAMPLING STRATEGY COMPARISON
-model_list <- list("SMOTE"          = model_smote,
-                   "No Sampling"    = model_no,
+model_list <- list("No Sampling"    = model_no,
                    "Up-sampling"    = model_up,
-                   "Down-sampling"  = model_down)
+                   "Down-sampling"  = model_down,
+                   "SMOTE"          = model_smote)
 
 test_eval <- f_model_comparison(models = model_list, df_test = data_test)
 
@@ -77,13 +77,6 @@ ggsave(filename = paste(path_Figures, "999. Uncalibrated probability plots.jpeg"
        dpi = 600)
 
 ## Calibrate
-f_recalibrate <- function(original_fraction, oversampled_fraction, score) {
-  per_p <- 1 + (1 / original_fraction - 1) / (1 / oversampled_fraction - 1) * (1 / score - 1)
-  p <- 1 / per_p
-    
-  return(p)
-}
-
 pred_no_calibrated    <- f_recalibrate(mean(actual == "Yes"), mean(pred_no$Yes),    pred_no$Yes)
 pred_down_calibrated  <- f_recalibrate(mean(actual == "Yes"), mean(pred_down$Yes),  pred_down$Yes)
 pred_up_calibrated    <- f_recalibrate(mean(actual == "Yes"), mean(pred_up$Yes),    pred_up$Yes)
@@ -113,6 +106,9 @@ ggsave(filename = paste(path_Figures, "999. Calibrated probability plots.jpeg", 
 ## use: https://www3.nd.edu/~rjohns15/content/papers/ssci2015_calibrating.pdf
 ## https://stats.stackexchange.com/questions/56498/re-scaling-a-confusion-matrix-after-down-sampling-one-class
 
+## Comments: SMOTE and down do better in separating probabilities.
+## None is perfect...
+
 ## Varimp
 variable_importance <- f_variable_importance(model_list)
 
@@ -125,6 +121,7 @@ p_vi <- variable_importance %>%
           ungroup() %>%
           filter(`Min. Importance` >= 25) %>%
           select(-`Min. Importance`) %>%
+          mutate(Sampling = factor(Sampling, levels = names(model_list))) %>%
           ggplot(aes(x = Variable, y = Importance, shape = Sampling)) +
           geom_line(aes(group = Variable), size = 1.35, alpha = 0.55) +  
           geom_point(size = 3.5) +
@@ -143,4 +140,4 @@ ggsave(filename = paste(path_Figures, "999. Variable Importance across sampling 
        dpi = 400)
 
 ## comments: wide variety
-## SMOTE is usually the outlier
+## SMOTE is usually the outlier --> down-sampling offers more consistency with other methods

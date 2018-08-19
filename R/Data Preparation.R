@@ -8,7 +8,7 @@ injuries          <- readRDS(file = paste(path_Data, "injuries.RDS", sep = "/"))
 country_to_region <- fread(paste(path_Data, "country_to_region.csv", sep = "/"))
 
 
-
+injuries %>% count(Year)
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## FIX formatting: kick-off
 injuries <- injuries %>%
@@ -48,11 +48,6 @@ injuries <- injuries %>%
               left_join(Month_mapping, by = "Month_Num") %>%
               mutate(Month = reorder(Month, Month_in_Season)) %>%
               select(-Month_Num, -Month_in_Season)
-
-##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## ADD Year
-injuries <- injuries %>%
-              mutate(Year = year(Date))
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ADD BMI column:

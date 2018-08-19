@@ -103,6 +103,9 @@ original_sample$injured_14days <- factor(original_sample$injured_14days, levels 
 original_sample$injured_21days <- factor(original_sample$injured_21days, levels = c("1", "0"), labels = c("Yes", "No"))
 original_sample$injured_28days <- factor(original_sample$injured_28days, levels = c("1", "0"), labels = c("Yes", "No"))
 
+#original_sample$home <- original_sample$home %>% as.numeric() ## glmnet can't handle factors...
+#original_sample$home <- original_sample$home ## glmnet can't handle factors...
+
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## set aside Year 2017 for performance testing
 training_set    <- original_sample %>% 

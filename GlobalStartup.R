@@ -1,6 +1,6 @@
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Library Import
-require(data.table)
+#require(data.table)
 require(tidyverse)
 require(lubridate)
 require(gridExtra)
@@ -23,7 +23,7 @@ source("GlobalVariables.R")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Set saving of figures
-save_plots <- F
+save_plots <- T
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Import functions & themes

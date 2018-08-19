@@ -2,108 +2,205 @@
 ## Initialize R setup
 source("GlobalStartup.R")
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load data_train & data_test
-data_train     <- readRDS(file = paste(path_Data, "data_train.RDS",       sep = "/"))
-data_test      <- readRDS(file = paste(path_Data, "data_test.RDS",        sep = "/"))
+# data_train     <- readRDS(file = paste(path_Data, "data_train.RDS",       sep = "/"))
+data_test       <- readRDS(file = paste(path_Data,   "data_test.RDS",      sep = "/"))
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load models
 ## GLM - Logit
-# m_glm_no       <- readRDS(file = paste(path_Models, "m_glm_no.RDS",       sep = "/"))
-# m_glm_up       <- readRDS(file = paste(path_Models, "m_glm_up.RDS",       sep = "/"))
-m_glm_down     <- readRDS(file = paste(path_Models, "m_glm_down.RDS",     sep = "/"))
-# m_glm_smote    <- readRDS(file = paste(path_Models, "m_glm_smote.RDS",    sep = "/"))
+m_logit_smote    <- readRDS(file = paste(path_Models, "m_logit_smote.RDS",   sep = "/"))
 
 ## GLM - Probit
-m_probit_down  <- readRDS(file = paste(path_Models, "m_probit_down.RDS",     sep = "/"))
+m_probit_smote   <- readRDS(file = paste(path_Models, "m_probit_smote.RDS",  sep = "/"))
 
 ## GLMNet
-m_glmnet_down  <- readRDS(file = paste(path_Models, "m_glmnet_down.RDS",  sep = "/"))
+m_glmnet_smote   <- readRDS(file = paste(path_Models, "m_glmnet_smote.RDS",  sep = "/"))
 
 ## RF
-m_rf_down      <- readRDS(file = paste(path_Models, "m_rf_down.RDS",      sep = "/"))
-m_rf_smote     <- readRDS(file = paste(path_Models, "m_rf_smote.RDS",      sep = "/"))
+m_rf_smote       <- readRDS(file = paste(path_Models, "m_rf_smote.RDS",      sep = "/"))
 
 ## XGBOOST
-m_xgboost_down  <- readRDS(file = paste(path_Models, "m_xgboost_down.RDS", sep = "/"))
+m_xgboost_smote  <- readRDS(file = paste(path_Models, "m_xgboost_smote.RDS", sep = "/"))
 
-
-#####################################
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## MODEL PERFORMANCE
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Resampling
-model_list <- list("Logit"         = m_glm_down,
-                   "Probit"        = m_probit_down,
-                   "GLMNet"        = m_glmnet_down,
-                   "Random Forest" = m_rf_down,
-##                 "RF"            = m_rf_smote,
-                   "XGBoost"       = m_xgboost_down
+model_list <- list(
+                   "Logit"         = m_logit_smote,
+                   "Probit"        = m_probit_smote,
+                   "GLMNet"        = m_glmnet_smote,
+                   "Random Forest" = m_rf_smote,
+                   "XGBoost"       = m_xgboost_smote
                    )
 
-resamples_object <- resamples(model_list)
-
-p_resampling <- resamples_object$values %>%
-                          tidyr::gather(key= "Resample", factor_key = F) %>%
-                          data.table::setnames(c("Model~Metric", "Value")) %>%
-                          mutate(model  = stringr::str_split(`Model~Metric`, "~", simplify = T)[,1],
-                                 metric = stringr::str_split(`Model~Metric`, "~", simplify = T)[,2]) %>%
-                          mutate(metric = factor(metric,
-                                                 levels = c("ROC",       "Sens",              "Spec"),
-                                                 labels = c("AUC (ROC)", "Sensitivity (TPR)", "Specificy (TNR)"))) %>%
-                          mutate(model = factor(model, levels = names(model_list))) %>%
-                          ggplot(aes(x = model, y = Value, fill = model)) +
-                          geom_boxplot() +
-                          facet_wrap(~metric, ncol = 1) +
-                          labs(title    = "Comparison of model performances",
-                               subtitle = "Logit, Probit, GLMNet, Random Forest and XGBoost",
-                               x        = "Model",
-                               y        = "",
-                               caption  = "Note: Results are based on 50 resamples of training data") +
-                          theme_minimal() +
-                          theme(plot.title  =  element_text(size = 20, face = "italic"),
-                                axis.text.x = element_text(angle = 45, hjust = 1, size = 12),
-                                axis.text.y = element_text(size = 12))
-
-ggsave(filename = paste(path_Figures, "9999. Model performance - resampling.jpeg", sep = "/"), 
-       plot = p_resampling, 
-       device = "jpeg", 
-       width = 7.5, height = 12,
-       dpi = 400)
-
-
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## ROC Curves and AUC
 test_eval <- f_model_comparison(models = model_list, df_test = data_test)
 
 test_eval$auc
 
 p_roc <- test_eval$plot +
-            labs(title = "ROC Curves for different models",
-                 subtitle = "Logit, Probit, GLMNet, Random Forest and XGBoost",
-                 caption = "Note: Results are measured on a held-out test set not used in model fitting")
+            labs(title    = "ROC Curves for different models",
+                 subtitle = "Models fitted via smote-sampling of the majority class",
+                 caption  = "Note: Results are measured on a held-out test set not used in model fitting") +
+            technical_theme() +
+            theme(legend.position = "right",
+                  legend.title = element_blank())
 
-ggsave(filename = paste(path_Figures, "9999. ROC Curve achieved by different models.jpeg", sep = "/"), 
+ggsave(filename = paste(path_Figures, "9999. ROC Curves for different models.jpeg", sep = "/"), 
        plot = p_roc, 
-       device = "jpeg", 
-       width = 6.5, height = 4,
-       dpi = 400)
-
-
-####################################
-## Variable Importance
-variable_importance <- f_variable_importance(model_list)
-# variable_importance %>% View()
-
-p_vi <- variable_importance %>%
-          filter(Importance > 50) %>%
-          ggplot(aes(x = Variable, y = Importance, color = Model)) +
-            geom_line(aes(group = Variable), color = "grey", size = 1.5) +  
-            geom_point(size = 3.5) +
-            theme_minimal() +
-            coord_flip() +
-            labs(title = "Variable Importances",
-                 subtitle = "GLMNet, Random Forest, XGBoost",
-                 caption = "Note: Only top 15 most important variables (on avg.) are shown")
-
-ggsave(filename = paste(path_Figures, "9999. Variable Importance.jpeg", sep = "/"), 
-       plot = p_vi, 
        device = "jpeg", 
        width = 6, height = 4,
        dpi = 400)
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Probability calibrations
+actual <- data_test$injured
+
+## plot uncalibrated
+pred_logit_smote     <- predict.train(m_logit_smote,   newdata = data_test, type = "prob") 
+pred_probit_smote    <- predict.train(m_probit_smote,  newdata = data_test, type = "prob") 
+pred_glmnet_smote    <- predict.train(m_glmnet_smote,  newdata = data_test, type = "prob") 
+pred_rf_smote        <- predict.train(m_rf_smote,      newdata = data_test, type = "prob")
+pred_xgboost_smote   <- predict.train(m_xgboost_smote, newdata = data_test, type = "prob")
+
+p_logit_smote   <- f_calibration_create(score = pred_logit_smote$Yes,   truth = actual)$plot + labs(subtitle = "Logit")
+p_probit_smote  <- f_calibration_create(score = pred_probit_smote$Yes,  truth = actual)$plot + labs(subtitle = "Probit")
+p_glmnet_smote  <- f_calibration_create(score = pred_glmnet_smote$Yes,  truth = actual)$plot + labs(subtitle = "GLMNet")
+p_rf_smote      <- f_calibration_create(score = pred_rf_smote$Yes,      truth = actual)$plot + labs(subtitle = "Random Forest")
+p_xgboost_smote <- f_calibration_create(score = pred_xgboost_smote$Yes, truth = actual)$plot + labs(subtitle = "XGBoost")
+
+g_uncalibrated <- arrangeGrob(p_logit_smote, p_probit_smote, p_glmnet_smote, p_rf_smote, p_xgboost_smote, ncol = 5,
+                              top = grid::textGrob("Uncalibrated probability plots for different models", 
+                                                   gp = grid::gpar(fontfamily = "Garamond", fontsize = 18, lineheight = 1.25),
+                                                   hjust = 1.5))
+
+ggsave(filename = paste(path_Figures, "9999. Uncalibrated probability plots for different models.jpeg", sep = "/"), 
+       plot = g_uncalibrated, 
+       device = "jpeg", 
+       width = 15, height = 4,
+       dpi = 600)
+
+## Calibrate
+f_recalibrate <- function(original_fraction, oversampled_fraction, score) {
+  per_p <- 1 + (1 / original_fraction - 1) / (1 / oversampled_fraction - 1) * (1 / score - 1)
+  p <- 1 / per_p
+  
+  return(p)
+}
+
+pred_logit_smote_calibrated   <- f_recalibrate(mean(actual == "Yes"), mean(pred_logit_smote$Yes),   pred_logit_smote$Yes)
+pred_probit_smote_calibrated  <- f_recalibrate(mean(actual == "Yes"), mean(pred_probit_smote$Yes),  pred_probit_smote$Yes)
+pred_glmnet_smote_calibrated  <- f_recalibrate(mean(actual == "Yes"), mean(pred_glmnet_smote$Yes),  pred_glmnet_smote$Yes)
+pred_rf_smote_calibrated      <- f_recalibrate(mean(actual == "Yes"), mean(pred_rf_smote$Yes),      pred_rf_smote$Yes)
+pred_xgboost_smote_calibrated <- f_recalibrate(mean(actual == "Yes"), mean(pred_xgboost_smote$Yes), pred_xgboost_smote$Yes)
+
+## Plot calibrated
+p_logit_smote   <- f_calibration_create(score = pred_logit_smote_calibrated,   truth = actual)$plot + labs(subtitle = "Logit")
+p_probit_smote  <- f_calibration_create(score = pred_probit_smote_calibrated,  truth = actual)$plot + labs(subtitle = "Probit")
+p_glmnet_smote  <- f_calibration_create(score = pred_glmnet_smote_calibrated,  truth = actual)$plot + labs(subtitle = "GLMNet")
+p_rf_smote      <- f_calibration_create(score = pred_rf_smote_calibrated,      truth = actual)$plot + labs(subtitle = "Random Forest")
+p_xgboost_smote <- f_calibration_create(score = pred_xgboost_smote_calibrated, truth = actual)$plot + labs(subtitle = "XGBoost")
+
+g_calibrated <- arrangeGrob(p_logit_smote, p_probit_smote, p_glmnet_smote, p_rf_smote, p_xgboost_smote, ncol = 5,
+                            top = grid::textGrob("Calibrated probability plots for different models", 
+                                                 gp = grid::gpar(fontfamily = "Garamond", fontsize = 18, lineheight = 1.25),
+                                                 hjust = 1.5))
+
+ggsave(filename = paste(path_Figures, "9999. Calibrated probability plots.jpeg", sep = "/"), 
+       plot = g_calibrated, 
+       device = "jpeg", 
+       width = 15, height = 4,
+       dpi = 600)
+
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Variable Importance
+variable_importance <- f_variable_importance(model_list)
+## TODO: issues with format...
+p_vi <- variable_importance %>%
+          mutate(Variable = gsub(pattern = "`", replace = "", x = Variable)) %>%
+          mutate(Importance = ifelse(!is.na(Importance), Importance, 0)) %>%
+          tidyr::spread(key = "Model", value = "Importance") %>%
+          mutate(Variable = reorder(Variable, `Random Forest`)) %>%
+          tidyr::gather(key = "Model", value = "Importance", -Variable) %>%
+          mutate(Model = factor(Model, levels = names(model_list))) %>%
+          mutate(Type = ifelse(Model %in% c("Random Forest", "XGBoost"), "Tree-based", "Linear")) %>%
+          group_by(Variable) %>%
+          mutate(`Min. Importance` = max(Importance, na.rm = TRUE)) %>%
+          ungroup() %>%
+          filter(`Min. Importance` >= 25) %>%
+          select(-`Min. Importance`) %>%
+          ggplot(aes(x = Variable, y = Importance, shape = Model)) +
+          geom_line(aes(group = Variable), size = 1.35, alpha = 0.55) +  
+          geom_point(size = 3.5, fill = "black") +
+          scale_shape_manual(values = c(15:18, 25)) +
+          technical_theme() +
+          theme(legend.position = "top",
+                legend.title = element_blank()) +
+          coord_flip() +
+          facet_wrap(~Type) +
+          labs(title = "Variable Importance across models",
+               caption = "Note: Only variables scoring 40 or above at least once are shown")
+
+ggsave(filename = paste(path_Figures, "9999. Variable Importance across models.jpeg", sep = "/"), 
+       plot = p_vi, 
+       device = "jpeg", 
+       width = 10, height = 8,
+       dpi = 400)
+
+coef_glmnet_smote <- coef(m_glmnet_smote$finalModel, m_glmnet_smote$bestTune$lambda)
+coef_names_glmnet_smote <- coef_glmnet_smote@Dimnames[[1]][coef_glmnet_smote@i+1]
+coef_values_glmnet_smote <- coef_glmnet_smote@x
+
+df_coef_glmnet_smote <- data.frame("Coefficient" = coef_names_glmnet_smote,
+                                  "Value" = coef_values_glmnet_smote)
+
+p_coef_glmnet_smote <- df_coef_glmnet_smote %>%
+                        mutate(Coefficient = reorder(Coefficient, -Value)) %>%
+                        mutate(Value = -1 * Value) %>%
+                        mutate(Sign = Value >= 0) %>%
+                        filter(abs(Value) >= 0.05) %>%
+                        filter(Coefficient != "(Intercept)") %>%
+                        ggplot(aes(x = Coefficient, y = Value, fill = Sign)) +
+                          geom_bar(stat = "identity") +
+                          scale_y_continuous(limits = c(-0.2, 0.2)) +
+                          scale_fill_manual(values=c("steelblue2", "firebrick")) +
+                          coord_flip() +
+                          labs(title = "Coefficent values for GLMNet model",
+                               x = "",
+                               y = "",
+                               caption = "Note: Only variables with relative importance above 0.01 are shown") +
+                          story_theme() +
+                          theme(legend.position = "none")
+
+ggsave(filename = paste(path_Figures, "9999. Coefficent values for GLMNet models.jpeg", sep = "/"), 
+       plot = p_coef_glmnet_smote, 
+       device = "jpeg", 
+       width = 6, height = 4,
+       dpi = 400)
+
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## Bias
+df_bias <- data_frame("injured"       = data_test$injured,
+                      "Year"          = data_test$Year,
+                      "Logit"         = pred_logit_smote_calibrated,
+                      "Probit"        = pred_probit_smote_calibrated,
+                      "GLMNet"        = pred_glmnet_smote_calibrated,
+                      "Random Forest" = pred_rf_smote_calibrated,
+                      "XGBoost"       = pred_xgboost_smote_calibrated)
+
+## By year
+df_bias %>% 
+  group_by(Year) %>%
+  summarize(`Count`         = n(), 
+            `Injury Rate`   = sum(injured == "Yes") / n(),
+            `Logit`         = mean(Logit),
+            `Probit`        = mean(Probit),
+            `GLMNet`        = mean(GLMNet),
+            `Random Forest` = mean(`Random Forest`),
+            `XGBoost`       = mean(`XGBoost`))

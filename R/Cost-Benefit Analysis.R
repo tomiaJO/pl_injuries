@@ -6,7 +6,7 @@ source("GlobalStartup.R")
 data_test  <- readRDS(file = paste(path_Data,   "data_test.RDS",      sep = "/"))
 
 ## Load model
-model      <- readRDS(file = paste(path_Models, "m_rf_down.RDS",      sep = "/"))
+model      <- readRDS(file = paste(path_Models, "m_rf_smote.RDS",      sep = "/"))
 
 #### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 pred_prob <- predict.train(model, newdata = data_test, type = "prob")
@@ -53,7 +53,7 @@ pred_vs_thr %>%
    # scale_x_continuous(limits = c(0.5, 0.8)) 
    scale_y_continuous(limits = c(0, 9500))
 
-pred_class <- ifelse(pred_prob$`Predicted Probability` > 0.65, "Yes", "No")
+pred_class <- ifelse(pred_prob$`Predicted Probability` > 0.825, "Yes", "No")
 pred_class <- factor(pred_class, levels = c("Yes", "No"))
 confusionMatrix(data = pred_class, reference = pred_prob$injured) %>% as.matrix()
 

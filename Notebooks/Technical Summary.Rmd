@@ -1,5 +1,5 @@
 ---
-title: 'Project Technical Discussion: Prediction of lower-body strains in Soccer'
+title: 'Project Technical Discussion: A data-based approach to prevent lower body muscle strains in soccer'
 author: "Tamas Koncz"
 date: "August 11, 2018"
 output:
@@ -38,9 +38,9 @@ Data used for this exercise is a per game per player level collection of the Pre
 
 The target variable for prediction is "injured" - 1 if player was reported injured after the game, 0 otherwise. Descriptive data is also available on the type of the injury, and how long it reportedly last.  
 
-The list of Other variables can be found in the Appendix. 
+The list of Other variables can be found in the Appendix.  
 
-Data is courtesy of Gabor Bekes and Endre Borza, and can not be shared without their permission.  
+<span style="color:red">add sentence re. source</span> 
 
 \pagebreak
 
@@ -55,19 +55,28 @@ As the original dataset was in raw format (as collected from the internet), cert
 Years before 2010 were removed as their injury data was non-complete.  
 Year 2018 was removed as data was incomplete - the Premier League season was still in progress at the time of data collection.
 
+### Missing data  
+
+In certain cases fields contained missing values (NAs) for some records.  
+Given the limited number of rows affected, they were removed from the dataset, rather than NAs being imputed by other values.  
+Fields affected:  
+* Foot  
+* Games (or minutes) played  
+* Height & Weight  
+
 ### Injury types & length  
 
-Unfortunately soccer injuries come in many different formats and can be a wide range of seriousness.  
+Unfortunately soccer injuries come in many different formats and their seriousness can be of a wide range.   
 
-The aim in this project is not to predict all possible injury types. The goal is to help decision makers (coaching staff) monitor the players' physical condition, and manage their playing time if neccessary for avoiding injuries.  
+The aim in this project is not to predict all possible injury types. The goal is to help decision makers (coaching staff) monitor the players' physical condition, and manage their playing time if neccessary for avoiding typical soccer injuries.  
 
 ```{r, out.width = '85%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/3. Injury types.jpeg")
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/3. Injury Types.jpeg")
 ```
 
-Any successful prediction exercise would need to make sure that the event being predicted does have a statistical connection to the predictors. For many injury types, we know that their occurance unrelated outside conditions (at least to our current knowledge). Examples include knocks, concussions, etc. This analysis is not interested in these.  
+Any successful prediction exercise would need to make sure that the event being predicted does have a statistical connection to the predictors. For many injury types, we know that their occurance is unrelated to outside conditions (at least to our current knowledge). Examples include knocks, concussions, etc. This analysis is not interested in these.  
   
-Rather, the injuries we are after are the "wear and tear" type - breakdowns of the human body related to increased physical stress, either in intensity or length (Unfortunately, most of the available data describes length - e.g. games played / rather than intensity - e.g. maximum speed. But more on this later).  
+Rather, the injuries we are after are the "wear and tear" type - breakdowns of the human body related to increased physical stress, either in intensity or length (Unfortunately, most of the available data describes length - e.g. games played / rather than intensity - e.g. maximum speed).  
 Based on their mechanical relationship and similar length profiles, injuries to be in focus are:  
 1. Hamstring  
 2. Groin Strain  
@@ -78,8 +87,8 @@ Even looking at the same injury types sometimes can be "apples to oranges", as t
 
 In this analysis, the descriptive data available on injuries is their reported length. As seen above, wide ranges are covered. Should we treat a hamstring strain lasting 1 day the same as one lasting 2 months?  
 
-How this question is handled is an important part of the analysis. One could certainly try to weight injuries by their length. This would be a good input into a cost-benefit analysis of resting players.
-However, to avoid introducing unneccessary complexity, injuries lasting less than 2 weeks will not be considered an injury for the purposes of this analysis.  
+How this question is handled is an important part of the analysis. One could certainly try to weight injuries by their length. This would be a good input into a cost-benefit analysis of resting players for "high-risk" matches.  
+Note, however, that to avoid introducing unneccessary complexity, injuries lasting less than 2 weeks will not be considered an injury for the purposes of this analysis.  
 
 This does remove a large part of the "injured" data (see below - removed partition is marked by orange), but it helps create a more homogenous categorization.
 
@@ -92,22 +101,19 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/4. Hamstring Inju
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/6. Injuries vs Position.jpeg")
 ``` 
 
-Goalkeepers were removed from the population, as their behaviour on the court is radically different from other positions - as we see, their injury rates are significantly lower as well. Focus is on field players.  
+Goalkeepers were removed from the population, as their behaviour on the court is radically different from that of other positions - as we see, their injury rates are significantly lower as well. Focus going forward is on field players.  
   
-Records with missing position were also remove - upon structural investigation, the quality of these rows were not deemed truthworsty for further investigation.  
+Records with missing position were also removed - upon structural checks, the quality of these rows were not deemed truthworsty for further investigation.  
 
 
-#### Playing time
+#### Playing time  
+```{r, out.width = '50%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/5. Injury rates vs PL season minutes.jpeg")
+``` 
 
-<span style="color:red">##TODO: explain why it wasn't applied</span>  
-
-#### Missing data - foot & playing history  
-
-<span style="color:red">##TODO: explain how it was handled in different cases (basically all removed)</span>  
-
-* Foot
-* Games (or minutes) played
-* Height & Weight
+No filter (other than removing NA values) were applied to playing time fields.  
+While it is a reasonable thought that minimal playing times (either for some bench players, or early season records) could be not contributing to injuries, data suggests otherwise.  
+The above chart supports this - records with less than 180 season minutes have no lower injury rates than others.  
 
 ## Feature Engineering
 
@@ -116,28 +122,35 @@ There are certain variables that were not available in the raw data format, howe
 Below is a comprehensive list of all variables created during the data preparation:  
 * Weekday and Month    
 * BMI  
-* Team and Opponent
+* Team and Opponent  
 * Birthplace and Nationality  
-* Kick-off time  
-* Injured ...  
-* Games ...  
-* Groupings (e.g. Venue, Team)  
-* Polinomial terms  
-
-<span style="color:red">##TODO: explain logic for each</span> 
+* Kick-off time (time of the day)  
+* Injury "history" (indicator whether player was injured in a previous time window)  
+* Games played in a given time window (career / last year / last 90 days)  
+* Some variables were grouped into larger categories (e.g. Venue, Team)  
 
 *An important technical note on categorical variables: before feeding them into predictive models, all categoricals were dummy-encoded.*  
 
-## Exploratory Analysis {.tabset} 
+## Exploratory Analysis {.tabset}
 
-### Intro, explain chart types
+### Intro, explain chart types  
 
-<span style="color:red">##TODO</span> 
+In this section, injury rates (number of injuries / number of records) will be broken down by categories of different variables.  
+
+For each variable, there are 3 charts (from left to right):  
+1. Average injury rates (red line) and game counts (blue bar) in a given category  
+2. 95% confidence interval of injury rates in a given category  
+3. Average injury length in a given category, breaken out by injury type  
+
+Commentary will be only provided on the variables deemed most important by the machine learning models applied.
 
 ### By physical attributes - age, height, weight, BMI
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/8g. Injuries vs Age.jpeg")
-``` 
+```
+
+Age has a more or less positive linear connection to the likeness of an injury - the older the player is, the more likely the injury.  
+It has to be noted however that the impact is not very large, specially considering that the two "outlier" groups (youngest/oldest) do not contain a large amount of players.  
 
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9g. Injuries vs Weight.jpeg")
@@ -150,6 +163,9 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/10g. Injuries vs 
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/11g. Injuries vs BMI.jpeg")
 ```
+
+Even though BMI is considered a significant predictor in some models, visual analysis does not uncover any clear trends.  
+This might be due to an unlinear relationship - tree-based methods put more weight on BMI than linear ones.  
 
 ### By Kick-off time
 
@@ -179,6 +195,8 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/17g. Injuries vs 
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/18g. Injuries vs Birth Country (Regionalized).jpeg")
 ```
 
+Nationality and birthplace had been selected by multiple models. Most notably, players from Africa are prone to getting injured somewhat more frequently.  
+
 ### By team, opponent and venue
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/19g. Injuries vs Team.jpeg")
@@ -191,6 +209,8 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/20g. Injuries vs 
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/16g. Injuries vs Venue.jpeg")
 ```
+
+Team and venue both have considerable importance according to models. This might be a sign of the impact of playing styles (e.g. speed, physicality). However, these variables are just "distant" proxies for style of play, hence no theories should be made on casuality.  
 
 ### By games & minutes played
 ```{r, out.width = '75%', fig.align = 'center'}
@@ -205,345 +225,345 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/22g. Injuries vs 
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs Non-PL Games in Season.jpeg")
 ```
 
-<span style="color:red">##TODO: add by minutes, by 4/14/28 category charts</span>  
+<span style="color:red">##TODO: add by minutes, by 4/14/28 category charts</span>
 
 ### By injury history
 
-<span style="color:red">##TODO: add charts</span>  
+<span style="color:red">##TODO: add charts</span>
 
 \pagebreak
 
-# Modeling  
-## Methodology {.tabset}  
-### Separation of data sets  
+<!-- # Modeling   -->
+<!-- ## Methodology {.tabset}   -->
+<!-- ### Separation of data sets   -->
 
-Year 2017 is set aside for final performance evaluation:  
-```{r, eval = FALSE, echo = TRUE}
-training_set    <- original_sample %>% 
-                     filter(Year < 2017)
+<!-- Year 2017 is set aside for final performance evaluation:   -->
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- training_set    <- original_sample %>%  -->
+<!--                      filter(Year < 2017) -->
 
-performance_set <- original_sample %>% 
-                     filter(Year == 2017)
-```
+<!-- performance_set <- original_sample %>%  -->
+<!--                      filter(Year == 2017) -->
+<!-- ``` -->
 
 
-Data from other years is split into a training and test set, based on a standard 70% - 30% split:  
-```{r, eval = FALSE, echo = TRUE}
-training_ratio <- 0.70
+<!-- Data from other years is split into a training and test set, based on a standard 70% - 30% split:   -->
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- training_ratio <- 0.70 -->
 
-train_indices <- createDataPartition(y = training_set[["injured"]],
-                                     times = 1,
-                                     p = training_ratio,
-                                     list = FALSE)
+<!-- train_indices <- createDataPartition(y = training_set[["injured"]], -->
+<!--                                      times = 1, -->
+<!--                                      p = training_ratio, -->
+<!--                                      list = FALSE) -->
 
-data_train <- training_set[train_indices,  ] %>% as.data.frame()
-data_test  <- training_set[-train_indices, ] %>% as.data.frame()
-```
+<!-- data_train <- training_set[train_indices,  ] %>% as.data.frame() -->
+<!-- data_test  <- training_set[-train_indices, ] %>% as.data.frame() -->
+<!-- ``` -->
 
 
-### The problem of class imbalance   
+<!-- ### The problem of class imbalance    -->
 
-Based on the previous definition of "injured", the cleaned data set consist of only 1% of positive cases.  
-This makes it highly imbalanced, something that can hurt model performance for classification tasks. 
-  
-More precisely: the cost of missclassifying a case-of-interest (injured == YES) observation is higher than the cost of a reversed error. It's very important to know when a player is in risk of getting injured, as if the event occurs, he can be out for a long period of time, costing the team money and available resource to compete as well. On the other hand, if a player is in good shape, an extra rest day can only hurt so much.  
-  
-In machine learning application there are multiple ways of addressing this issue. Main ones include, but are not limited to:  
-1. Sub-sampling
-2. Cost sensitive learning - weighting observations
-3. Learning methods, like one-class classifiers (e.g. autoencoders)
+<!-- Based on the previous definition of "injured", the cleaned data set consist of only 1% of positive cases.   -->
+<!-- This makes it highly imbalanced, something that can hurt model performance for classification tasks.  -->
 
-Let's review 1. in more detail, which was used for this analysis.  
+<!-- More precisely: the cost of missclassifying a case-of-interest (injured == YES) observation is higher than the cost of a reversed error. It's very important to know when a player is in risk of getting injured, as if the event occurs, he can be out for a long period of time, costing the team money and available resource to compete as well. On the other hand, if a player is in good shape, an extra rest day can only hurt so much.   -->
 
-#### Sub-sampling techniques for learning from imbalanced data
+<!-- In machine learning application there are multiple ways of addressing this issue. Main ones include, but are not limited to:   -->
+<!-- 1. Sub-sampling -->
+<!-- 2. Cost sensitive learning - weighting observations -->
+<!-- 3. Learning methods, like one-class classifiers (e.g. autoencoders) -->
 
-There are three possible ways to sub-sample data for better predictive performance: up-sampling, down-sampling, and methods mixing the two, like SMOTE. Each carryies their own benefits and disadvantages.  
+<!-- Let's review 1. in more detail, which was used for this analysis.   -->
 
-1. Down-sampling the majority class  
-In this case wer are removing observations from the majority class to make the data more balanced. Usually this method is best when the available data size is large.  
-It can reduce burden of computation effort and storage, however on the flip side it could potentially remove useful information.  
+<!-- #### Sub-sampling techniques for learning from imbalanced data -->
 
-2. Up-sampling the minority class  
-Oversampling repeats examples of the minority class, usually via bootstrapping. 
-There is no information loss that happens with down-sampling, however computation times can increase.  
-Also, by repeatation of the same observations, this method can lead to overfitting.
+<!-- There are three possible ways to sub-sample data for better predictive performance: up-sampling, down-sampling, and methods mixing the two, like SMOTE. Each carryies their own benefits and disadvantages.   -->
 
-3. SMOTE: Synthetic Minority Over-sampling TEchnique  
-An alternative approach is "mixing" the above two techniques. Down-sampling has an obvious drawback in loss of information. Up-sampling also risks to identify more similar, but also more specific regions of the feature space, hence not being able to generalize well in certain cases.  
-SMOTE creates synthetic new examples from the minority class, rather than just repeating existing observations.  
-The method is actually inspired by an older image recognition technique, where the same pictures are getting slightly distorted (e.g. via rotation).  
-The idea behind SMOTE works well in theory - however, depending on the data it might introduce new problems. Such a problem could be "noisy" data - when cases of classes are not well separated, SMOTE can enlarge this overlap, as it does not take distribution into consideration when creating synthetic new examples. For similar reasons, SMOTE tends to not work well for high dimensional data.  
+<!-- 1. Down-sampling the majority class   -->
+<!-- In this case wer are removing observations from the majority class to make the data more balanced. Usually this method is best when the available data size is large.   -->
+<!-- It can reduce burden of computation effort and storage, however on the flip side it could potentially remove useful information.   -->
 
+<!-- 2. Up-sampling the minority class   -->
+<!-- Oversampling repeats examples of the minority class, usually via bootstrapping.  -->
+<!-- There is no information loss that happens with down-sampling, however computation times can increase.   -->
+<!-- Also, by repeatation of the same observations, this method can lead to overfitting. -->
 
-Another important aspect of sub-sampling is when to apply it in the modeling workflow.  
-If subsampling is done before fitting a model, it will introduce two problems:
-1. For model tuning, the held-out sets in CV will also be sub-sampled. This can create unrealistic or overly optimistic performance measures.  
+<!-- 3. SMOTE: Synthetic Minority Over-sampling TEchnique   -->
+<!-- An alternative approach is "mixing" the above two techniques. Down-sampling has an obvious drawback in loss of information. Up-sampling also risks to identify more similar, but also more specific regions of the feature space, hence not being able to generalize well in certain cases.   -->
+<!-- SMOTE creates synthetic new examples from the minority class, rather than just repeating existing observations.   -->
+<!-- The method is actually inspired by an older image recognition technique, where the same pictures are getting slightly distorted (e.g. via rotation).   -->
+<!-- The idea behind SMOTE works well in theory - however, depending on the data it might introduce new problems. Such a problem could be "noisy" data - when cases of classes are not well separated, SMOTE can enlarge this overlap, as it does not take distribution into consideration when creating synthetic new examples. For similar reasons, SMOTE tends to not work well for high dimensional data.   -->
 
-2. Added uncertainity: we won't know for sure how results would look like with a different subsample. Similar effects arise as in the point above.  
 
-<span style="color:red">##TODO: reference resources properly</span> 
-- https://www.analyticsvidhya.com/blog/2017/03/imbalanced-classification-problem/  
-- https://topepo.github.io/caret/subsampling-for-class-imbalances.html  
-- http://www.ijcst.com/icaccbie11/sp1/krishnaveni.pdf  
-- https://www.jair.org/papers/paper953.html  
-
-#### A practical comparison of different sub-sampling methods 
+<!-- Another important aspect of sub-sampling is when to apply it in the modeling workflow.   -->
+<!-- If subsampling is done before fitting a model, it will introduce two problems: -->
+<!-- 1. For model tuning, the held-out sets in CV will also be sub-sampled. This can create unrealistic or overly optimistic performance measures.   -->
 
-Below is a summary of different sub-sampling techniques applied to the injury prediction problem.
-<span style="color:red">##TODO: Re-run with best method (XGBOOST so far)</span> 
+<!-- 2. Added uncertainity: we won't know for sure how results would look like with a different subsample. Similar effects arise as in the point above.   -->
 
-```{r, out.width = '65%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Comparison of sampling strategies.jpeg")
-```
+<!-- <span style="color:red">##TODO: reference resources properly</span>  -->
+<!-- - https://www.analyticsvidhya.com/blog/2017/03/imbalanced-classification-problem/   -->
+<!-- - https://topepo.github.io/caret/subsampling-for-class-imbalances.html   -->
+<!-- - http://www.ijcst.com/icaccbie11/sp1/krishnaveni.pdf   -->
+<!-- - https://www.jair.org/papers/paper953.html   -->
 
-An interesting outcome is that AUC values of the ROC curve are not significantly different.  
-AUC however is just one metric to describe the models' performance. The real optimization problem is maximizing the time a player can spend on the soccer field. The costliest case is when an injury event is not detected - false negatives can create a lot more headache than false positives.  
-
-Based on the LOGIT trial, down-sampling seems to work best. For further section, down-sampling is assumed if not noted otherwise, given it's better use of computation time as well.
+<!-- #### A practical comparison of different sub-sampling methods  -->
 
-```{r, out.width = '75%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. ROC Curve of different sampling strategies.jpeg")
-```
-
-## Methods used {.tabset} 
-
-### Overview
+<!-- Below is a summary of different sub-sampling techniques applied to the injury prediction problem. -->
+<!-- <span style="color:red">##TODO: Re-run with best method (XGBOOST so far)</span>  -->
 
-A total of 5 different methods were fit and tuned to select the best one for predicting injuries.  
-Below is a review of them one-by-one to understand the differences.
+<!-- ```{r, out.width = '65%', fig.align = 'center'} -->
+<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Comparison of sampling strategies.jpeg") -->
+<!-- ``` -->
 
-The "caret" R library was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document.
+<!-- An interesting outcome is that AUC values of the ROC curve are not significantly different.   -->
+<!-- AUC however is just one metric to describe the models' performance. The real optimization problem is maximizing the time a player can spend on the soccer field. The costliest case is when an injury event is not detected - false negatives can create a lot more headache than false positives.   -->
 
-Each method was called with the same control function:
-```{r, eval = FALSE, echo = TRUE}
-trainControl(method = "repeatedcv", 
-             repeats = 5,
-             classProbs = TRUE,
-             summaryFunction = twoClassSummary,
-             sampling = "down")
-```
-
-Models were tuned via 5-fold cross-validation. Other parameters instruct caret that this is a binary classification problem, and that down-sampling should be used during the fitting process.  
-  
-Seeding was applied before each fitting call, to facilitate reproducibility of the results. 
-```{r, eval = FALSE, echo = TRUE}
-set.seed(93)
-```
-
-
-<span style="color:red">##TODO: write a bit of theoretical background for each to explain why they were used</span> 
-
-### Simple Logit (GLM)  
-
-```{r, eval = FALSE, echo = TRUE}
-train(injured ~ .,
-      data      = data_train,
-      method    = "glm",
-      family    = binomial(link = "logit"),
-      metric    = "ROC",
-      trControl = ctrl)
-```
-
-### Simple Probit (GLM)
+<!-- Based on the LOGIT trial, down-sampling seems to work best. For further section, down-sampling is assumed if not noted otherwise, given it's better use of computation time as well. -->
 
-```{r, eval = FALSE, echo = TRUE}
-train(injured ~ .,
-      data      = data_train,
-      method    = "glm",
-      family    = binomial(link = "probit"),
-      metric    = "ROC",
-      trControl = ctrl)
-```
-
-### Reguralized Logit (GLMNet)
-
-```{r, eval = FALSE, echo = TRUE}
-train(injured ~ .,
-      data       = data_train,
-      method     = "glmnet",
-      family     = "binomial",
-      metric     = "ROC",
-      trControl  = ctrl,
-      preProcess = c("center", "scale"),
-      tuneLength = 10)
-```
-
-The tuneLength parameter instructs caret to complete a 10 x 10 grid search of alpha and lambda parameters.    
-Standardization is applied, as necessary for regularization.  
-
-### Random Forest (Ranger)  
-
-```{r, eval = FALSE, echo = TRUE}
-tg_rf <- expand.grid(.mtry = c(2:7),
-                     .splitrule = "gini",
-                     .min.node.size = c(10, 25, 100))
-
-train(injured ~ .,
-      method     = "ranger",
-      metric     = "ROC",
-      trControl  = ctrl,
-      tuneGrid   = tg_rf,
-      num.trees  = 500,
-      importance = "impurity")
-```
-
-
-### Gradient Boosting (XGBoost)
-
-```{r, eval = FALSE, echo = TRUE}
-tg_xgb <- expand.grid(nrounds = 250,
-                      max_depth = c(2:5),
-                      eta = c(0.01, 0.05),
-                      gamma = 0,
-                      colsample_bytree = c(.25, .5, .75),
-                      min_child_weight = 1,
-                      subsample = c(.25, .5, .75))
-
-train(injured ~ .,
-      method = "xgbTree",
-      metric = "ROC",
-      data = data_train,
-      trControl = ctrl,
-      tuneGrid = tg_xgb)
-```
-
-
-## Results {.tabset}
-
-### Prediction performance
-
-```{r, out.width = '65%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Model performance - resampling.jpeg")
-```
-
-```{r, out.width = '75%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. ROC Curve achieved by different models.jpeg")
-```
-
-<span style="color:red">##TODO: XGBoost seems best (as expected). Do write-up once models / variables are finalized</span> 
-
-### Variable importance
-
-```{r, out.width = '75%', fig.align = 'center'}
-include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Variable Importance.jpeg")
-```
-
-<span style="color:red">
-Currently big differences from model to model in which variables are most important...  
-Likely due to many correlations (Logit / Probit / GLMNet were very similar).  
-Squared version could be removed from tree-based methods.  
-
-Also, pick few examples, explain with LIME
-</span> 
-
-\pagebreak
-
-# Cost-benefit analysis
-
-<span style="color:red">##TODO: Simple numeric example on sum of missed time using algorithmic solution vs not</span> 
-
-\pagebreak
-
-# Appendix {.tabset .tabset-fade .tabset-pills}
-## Project organization  
-
-This project is breaken into separte, runable parts, which are not included in this markdown file.  
-The main parts are:  
-1. Raw Data  
-2. Runable R scripts, storing the steps of the analysis  
-3. Functions  
-4. Models  
-5. Notebooks  
-6. Figures  
-7. Data  
-
-<span style="color:red">##TODO: add details</span> 
-
-## List of variables in raw data
-
-```{r}
-kable(data.frame(
-"Variable" = c("Date",
-"balance",
-"ft_a",
-"ft_h",
-"Attendance",
-"Game week",
-"Kick-off",
-"Venue",
-"home",
-"ht_a",
-"ht_h",
-"injured",
-"mid",
-"minutes",
-"pid",
-"starter",
-"injury_length",
-"injury_type",
-"injury_minutes_played",
-"days_till_injury",
-"pl/all_minutes/games_n/season",
-"Country of birth",
-"Date of birth",
-"First name",
-"Foot",
-"Height",
-"Last name",
-"Nationality",
-"Place of birth",
-"Position",
-"Weight",
-"away_team",
-"away_tid",
-"home_team",
-"home_tid"),
-"Description" = c("date of the game (YYYY-MM-DD)",
-"absolute full time goal difference=|ft_a - ft_h|",
-"full time away team goals",
-"full time home team goals",
-"number of fans at the game",
-"game week of the season",
-"kickoff time (GMT)",
-"Location of the stadium",
-"whether player lines up or the home side or not",
-"half time away team goals",
-"half time home team goals",
-"whether player was reported injured after the match, (before playing any other match) or not",
-"unique match id",
-"minutes played by the player on the match (stoppage time is discarded, so cannot be more than 90)",
-"unique player id",
-"whether player started the match or not",
-"if player was reported after the game, how many days did the injury reportedly last",
-"what type of injury was reported",
-"equals the minutes variable in case of injured = 1, otherwise 0",
-"how many days between the date of the match and start of reported injury",
-"how many games/minutes of premier league/any other football played by player in the n/days before the match (or in the season, total)",
-"player country of birth",
-"player DoB",
-"player first name",
-"player preferred foot",
-"player height",
-"player last name",
-"player nationality",
-"player place of birth",
-"player position",
-"player weight (at time of collecting data)",
-"away team name",
-"away team id",
-"home team name",
-"home team id")
-))
-
-```
-
-## Citations
-
-<span style="color:red">##TODO: list resources</span> 
-
-## Sessioninfo
-
-```{r}
-sessionInfo()
-```
+<!-- ```{r, out.width = '75%', fig.align = 'center'} -->
+<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. ROC Curve of different sampling strategies.jpeg") -->
+<!-- ``` -->
+
+<!-- ## Methods used {.tabset}  -->
+
+<!-- ### Overview -->
+
+<!-- A total of 5 different methods were fit and tuned to select the best one for predicting injuries.   -->
+<!-- Below is a review of them one-by-one to understand the differences. -->
+
+<!-- The "caret" R library was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document. -->
+
+<!-- Each method was called with the same control function: -->
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- trainControl(method = "repeatedcv",  -->
+<!--              repeats = 5, -->
+<!--              classProbs = TRUE, -->
+<!--              summaryFunction = twoClassSummary, -->
+<!--              sampling = "down") -->
+<!-- ``` -->
+
+<!-- Models were tuned via 5-fold cross-validation. Other parameters instruct caret that this is a binary classification problem, and that down-sampling should be used during the fitting process.   -->
+
+<!-- Seeding was applied before each fitting call, to facilitate reproducibility of the results.  -->
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- set.seed(93) -->
+<!-- ``` -->
+
+
+<!-- <span style="color:red">##TODO: write a bit of theoretical background for each to explain why they were used</span>  -->
+
+<!-- ### Simple Logit (GLM)   -->
+
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- train(injured ~ ., -->
+<!--       data      = data_train, -->
+<!--       method    = "glm", -->
+<!--       family    = binomial(link = "logit"), -->
+<!--       metric    = "ROC", -->
+<!--       trControl = ctrl) -->
+<!-- ``` -->
+
+<!-- ### Simple Probit (GLM) -->
+
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- train(injured ~ ., -->
+<!--       data      = data_train, -->
+<!--       method    = "glm", -->
+<!--       family    = binomial(link = "probit"), -->
+<!--       metric    = "ROC", -->
+<!--       trControl = ctrl) -->
+<!-- ``` -->
+
+<!-- ### Reguralized Logit (GLMNet) -->
+
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- train(injured ~ ., -->
+<!--       data       = data_train, -->
+<!--       method     = "glmnet", -->
+<!--       family     = "binomial", -->
+<!--       metric     = "ROC", -->
+<!--       trControl  = ctrl, -->
+<!--       preProcess = c("center", "scale"), -->
+<!--       tuneLength = 10) -->
+<!-- ``` -->
+
+<!-- The tuneLength parameter instructs caret to complete a 10 x 10 grid search of alpha and lambda parameters.     -->
+<!-- Standardization is applied, as necessary for regularization.   -->
+
+<!-- ### Random Forest (Ranger)   -->
+
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- tg_rf <- expand.grid(.mtry = c(2:7), -->
+<!--                      .splitrule = "gini", -->
+<!--                      .min.node.size = c(10, 25, 100)) -->
+
+<!-- train(injured ~ ., -->
+<!--       method     = "ranger", -->
+<!--       metric     = "ROC", -->
+<!--       trControl  = ctrl, -->
+<!--       tuneGrid   = tg_rf, -->
+<!--       num.trees  = 500, -->
+<!--       importance = "impurity") -->
+<!-- ``` -->
+
+
+<!-- ### Gradient Boosting (XGBoost) -->
+
+<!-- ```{r, eval = FALSE, echo = TRUE} -->
+<!-- tg_xgb <- expand.grid(nrounds = 250, -->
+<!--                       max_depth = c(2:5), -->
+<!--                       eta = c(0.01, 0.05), -->
+<!--                       gamma = 0, -->
+<!--                       colsample_bytree = c(.25, .5, .75), -->
+<!--                       min_child_weight = 1, -->
+<!--                       subsample = c(.25, .5, .75)) -->
+
+<!-- train(injured ~ ., -->
+<!--       method = "xgbTree", -->
+<!--       metric = "ROC", -->
+<!--       data = data_train, -->
+<!--       trControl = ctrl, -->
+<!--       tuneGrid = tg_xgb) -->
+<!-- ``` -->
+
+
+<!-- ## Results {.tabset} -->
+
+<!-- ### Prediction performance -->
+
+<!-- ```{r, out.width = '65%', fig.align = 'center'} -->
+<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Model performance - resampling.jpeg") -->
+<!-- ``` -->
+
+<!-- ```{r, out.width = '75%', fig.align = 'center'} -->
+<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. ROC Curve achieved by different models.jpeg") -->
+<!-- ``` -->
+
+<!-- <span style="color:red">##TODO: XGBoost seems best (as expected). Do write-up once models / variables are finalized</span>  -->
+
+<!-- ### Variable importance -->
+
+<!-- ```{r, out.width = '75%', fig.align = 'center'} -->
+<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Variable Importance.jpeg") -->
+<!-- ``` -->
+
+<!-- <span style="color:red"> -->
+<!-- Currently big differences from model to model in which variables are most important...   -->
+<!-- Likely due to many correlations (Logit / Probit / GLMNet were very similar).   -->
+<!-- Squared version could be removed from tree-based methods.   -->
+
+<!-- Also, pick few examples, explain with LIME -->
+<!-- </span>  -->
+
+<!-- \pagebreak -->
+
+<!-- # Cost-benefit analysis -->
+
+<!-- <span style="color:red">##TODO: Simple numeric example on sum of missed time using algorithmic solution vs not</span>  -->
+
+<!-- \pagebreak -->
+
+<!-- # Appendix {.tabset .tabset-fade .tabset-pills} -->
+<!-- ## Project organization   -->
+
+<!-- This project is breaken into separte, runable parts, which are not included in this markdown file.   -->
+<!-- The main parts are:   -->
+<!-- 1. Raw Data   -->
+<!-- 2. Runable R scripts, storing the steps of the analysis   -->
+<!-- 3. Functions   -->
+<!-- 4. Models   -->
+<!-- 5. Notebooks   -->
+<!-- 6. Figures   -->
+<!-- 7. Data   -->
+
+<!-- <span style="color:red">##TODO: add details</span>  -->
+
+<!-- ## List of variables in raw data -->
+
+<!-- ```{r} -->
+<!-- kable(data.frame( -->
+<!-- "Variable" = c("Date", -->
+<!-- "balance", -->
+<!-- "ft_a", -->
+<!-- "ft_h", -->
+<!-- "Attendance", -->
+<!-- "Game week", -->
+<!-- "Kick-off", -->
+<!-- "Venue", -->
+<!-- "home", -->
+<!-- "ht_a", -->
+<!-- "ht_h", -->
+<!-- "injured", -->
+<!-- "mid", -->
+<!-- "minutes", -->
+<!-- "pid", -->
+<!-- "starter", -->
+<!-- "injury_length", -->
+<!-- "injury_type", -->
+<!-- "injury_minutes_played", -->
+<!-- "days_till_injury", -->
+<!-- "pl/all_minutes/games_n/season", -->
+<!-- "Country of birth", -->
+<!-- "Date of birth", -->
+<!-- "First name", -->
+<!-- "Foot", -->
+<!-- "Height", -->
+<!-- "Last name", -->
+<!-- "Nationality", -->
+<!-- "Place of birth", -->
+<!-- "Position", -->
+<!-- "Weight", -->
+<!-- "away_team", -->
+<!-- "away_tid", -->
+<!-- "home_team", -->
+<!-- "home_tid"), -->
+<!-- "Description" = c("date of the game (YYYY-MM-DD)", -->
+<!-- "absolute full time goal difference=|ft_a - ft_h|", -->
+<!-- "full time away team goals", -->
+<!-- "full time home team goals", -->
+<!-- "number of fans at the game", -->
+<!-- "game week of the season", -->
+<!-- "kickoff time (GMT)", -->
+<!-- "Location of the stadium", -->
+<!-- "whether player lines up or the home side or not", -->
+<!-- "half time away team goals", -->
+<!-- "half time home team goals", -->
+<!-- "whether player was reported injured after the match, (before playing any other match) or not", -->
+<!-- "unique match id", -->
+<!-- "minutes played by the player on the match (stoppage time is discarded, so cannot be more than 90)", -->
+<!-- "unique player id", -->
+<!-- "whether player started the match or not", -->
+<!-- "if player was reported after the game, how many days did the injury reportedly last", -->
+<!-- "what type of injury was reported", -->
+<!-- "equals the minutes variable in case of injured = 1, otherwise 0", -->
+<!-- "how many days between the date of the match and start of reported injury", -->
+<!-- "how many games/minutes of premier league/any other football played by player in the n/days before the match (or in the season, total)", -->
+<!-- "player country of birth", -->
+<!-- "player DoB", -->
+<!-- "player first name", -->
+<!-- "player preferred foot", -->
+<!-- "player height", -->
+<!-- "player last name", -->
+<!-- "player nationality", -->
+<!-- "player place of birth", -->
+<!-- "player position", -->
+<!-- "player weight (at time of collecting data)", -->
+<!-- "away team name", -->
+<!-- "away team id", -->
+<!-- "home team name", -->
+<!-- "home team id") -->
+<!-- )) -->
+
+<!-- ``` -->
+
+<!-- ## Citations -->
+
+<!-- <span style="color:red">##TODO: list resources</span>  -->
+
+<!-- ## Sessioninfo -->
+
+<!-- ```{r} -->
+<!-- sessionInfo() -->
+<!-- ``` -->
 
