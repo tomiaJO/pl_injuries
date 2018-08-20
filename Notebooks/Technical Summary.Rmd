@@ -1,5 +1,5 @@
 ---
-title: 'Project Technical Discussion: A data-based approach to prevent lower body muscle strains in soccer'
+title: 'Project Technical Discussion: A Data-based Approach to Prevent Lower Body Muscle Strains in Soccer'
 author: "Tamas Koncz"
 date: "August 21, 2018"
 output:
@@ -13,6 +13,7 @@ bibliography: references.bib
 ```{r setup, include = FALSE}
 library(knitr)
 library(kableExtra)
+library(pander)
 library(tidyverse)
 library(caret)
 library(DMwR)
@@ -27,13 +28,23 @@ opts_chunk$set(echo    = FALSE)
   
 # Introduction 
 
-The aim of this analysis is to identify direct links between injury risk of professional soccer players and certain relatable factors.  
+The aim of this work is to identify direct links between injury risk of professional soccer players and certain relatable factors.  
 
-Specifically, the injuries in focus are muscle strains happening in the lower body. A large collection of player level information was used to explore the existing relationships, using visual and statistical modeling methods.  
+Specifically, the injuries in focus are muscle strains happening in the lower body. To consider the seriousness of this problem, consider the below chart:  
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Lost player days due to lower body strains.jpeg")
+```
 
-While it was not possible to establish an accurate prediction system for individual injuries, this paper demonstrates that there are other valuable insights that coudl be gathered. Among the most important ones are the impact of past injuries on future risk.  
+A large number of matches are missed by players due to injuries - a costly experience for teams, and an unpleasant one for both players and soccer fans.  
 
-The last section contains suggestions for future work, amongs them an interesting concept of investigating injuries in multiple-day time windows, rather than treating them as in-game occurances.  
+A large collection of player level information was used to explore the existing relationship of many variables and injury risk, using visual and statistical modeling methods.  
+
+While it was not possible to establish an accurate prediction system for individual injuries, the analysis demonstrates that there are other valuable insights that could be gathered. Among the most important ones are the impact of past injuries on future risk.  
+
+There are believed to be two roadblocks to high-accuracy predictions: 1. Injuries are rare events, which makes it hard to model them from a technical perspective 2. Any dataset of historical player injuries is inherently biased, as coaches and teams already apply their own mitigation methods.  
+
+The last section contains suggestions for future work, among them an interesting concept of investigating injuries in multiple-day time windows, rather than treating them as in-game occurrences.   
+
 \pagebreak
 
 # Scope
@@ -49,9 +60,9 @@ The list of Other variables can be found in the Appendix.
 
 # Data Preparation
 
-## Filters {.tabset}  
+## Filters
 
-As the original dataset was in raw format (as collected from the internet), certain filters need to be applied before data is ready for meaningful modeling work.
+As the original dataset was in raw format (as collected from the internet), certain filters were needed to be applied before data was ready for meaningful modeling work.
 
 ### Years  
 
@@ -134,7 +145,7 @@ Below is a comprehensive list of all variables created during the data preparati
 
 *An important technical note on categorical variables: before feeding them into predictive models, all categoricals were dummy-encoded.*  
 
-## Exploratory Analysis {.tabset}
+## Exploratory Analysis
 
 ### Intro, explain chart types  
 
@@ -180,6 +191,8 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/12g. Injuries vs 
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/13g. Injuries vs Year.jpeg")
 ```
 
+There was a clear trend during the years in injury frequencies, first an increase leading up to 2015, and drops in consecutive years since then.  
+
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/14g. Injuries vs Month.jpeg")
 ```
@@ -214,7 +227,14 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/16g. Injuries vs 
 
 Team and venue both have considerable importance according to models. This might be a sign of the impact of playing styles (e.g. speed, physicality). However, these variables are just "distant" proxies for style of play, hence no theories should be made on casuality.  
 
-### By games & minutes played
+### By games & minutes played  
+
+Aggregate data shows a reverse relationship between play-load before a match and injury frequencies.  
+
+This is counterintuitive at first - the expectation is that the more playing time, the more load on a players body, leading to higher risk of injury.  
+
+There might be a selection bias however - players who "survive" without being injured will be available to play the most time during a season. This work will only note this discrepancy, and not provide a commentary on causality in lack of information.  
+
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/21g. Injuries vs PL Games in Season.jpeg")
 ```
@@ -227,7 +247,6 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/22g. Injuries vs 
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs Non-PL Games in Season.jpeg")
 ```
 
-<span style="color:red">##TODO: add by minutes, by 4/14/28 category charts</span>
 
 ### By injury history
 
@@ -236,7 +255,7 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs 
 \pagebreak
 
 # Modeling
-## Methodology {.tabset}
+## Methodology
 ### Avoiding overfitting  
 
 To avoid overfitting, a standard approach of separating training / validation / performance sets was used.  
@@ -370,7 +389,7 @@ Again, neither model does particularly well. SMOTE is strongest however in a key
   
 This fact, together with the theoretical advantages, and the computational effort aspect makes SMOTE the best choice for conducting further analysis.
 
-## Methods used {.tabset}  
+## Methods used
 
 ### Overview  
 
@@ -490,7 +509,7 @@ train(injured ~ .,
 ```
 
 
-## Results {.tabset}
+## Results
 
 ### Predictions
 
@@ -529,7 +548,30 @@ The two models that produce relatively well-scaled predictions are GLMNet and Ra
 Based on the above, Random Forest is selected as the best possible model for prediction of injuries. An evaluation of practical value in player resting is covered in the next section.  
 
 ### Cost-benefit analysis
-<span style="color:red">##TODO</span>
+To evaluate the "business" value of the proposed model consider the following evaluation framework:  
+1. Benchmark is actual missed time - sum of injury length
+2. Model-based missed time is calculated as follows: if a player is classified as injury-risk, he will not play in the match. A 3.5 days missed length is assumed. If a player is not classified as injury-risk, but gets injured, the actual injury length will be counted  
+  
+Benchmark data is from year 2017, which was not used for model tuning and evaluation previously.
+
+The below chart demonstrates the impact of chosing different thresholds:
+
+```{r, out.width = '65%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Cost-benefit.jpeg")
+```
+
+Unfortunately, it seems that even in the best case, the benefits are neglible. And if a slightly different threshold is chosen, the modeled approach is worst-off than the historical benchmark.  
+
+To understand why, consider the confusion matrix visualized at a reasonable threshold rate:
+```{r, results = 'asis'}
+readRDS(file = "C:/Users/tkonc/Documents/pl_injuries/Data/data_cm.RDS") %>% ftable %>% pander()
+```
+
+The true positive rate, the rate of identified injuries is 14.85%. On the other hand, false positive classifications are happening at a below 4% rate. At first this seems like a good alternative to the no-model case.  
+
+The problem is that false positives are not costless. Positive classifications mean that the player needs to miss the upcoming match (in the analysis measured as 3.5 days missed). The average missed time for an injury is approximately 37 days. With these costs, the model would need to identify around one tenth as many true positives as false positives to be on par with the benchmark.  
+
+This is a case of "no free lunch" in data science - mistakes are costly, hence just because something can be modeled, it does not mean that it can be modeled benefically for the business. The likely challenge (apart from a possible large amount of randomness to injuries) is that teams already try to optimize against injuries - public data might not be enough to beat the best soccer managers in the World.  
 
 ### Variable importance  
 
@@ -566,9 +608,15 @@ Usually, certain dormant variables (not measured) will have a casual relationshi
 
 If the desired variables are not available, caution is needed to ensure that the model is not polluted by unintended (and untrue) consequences.  
 
-For the injury prediction problem, two aspects will be reviewed: differences of times (years), and differences among teams.
+For the injury prediction problem, the performance across years is to be considered.  
+It is understood that injury rates across years are not constant, but year itself cannot be a predictor, which creates a modeling challenge.
 
-<span style="color:red">##TODO</span>
+```{r, out.width = '45%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Prediction bias over years.jpeg")
+```
+
+In some sense unfortunately the models do fail this test - their predictions are relatively flat over years.
+It cannot be concluded however that this is a problem with the models - occurances of injuries have a random factor for sure, and it was shown that the 95% confidence intervals of actual injury rates are rather wide. What we know is that modeled variables did not show a significant variation over years, but injury frequencies did. This might be just due to random chance.  
 
 #### Data-external factors
 It should be remembered that data is for the Premier League, seasons between 2010 and 2017.  
@@ -584,14 +632,41 @@ A harder aspect to measure is each player's individual physical (and psychical) 
 \pagebreak
 
 # Considerations for future work
-<span style="color:red">##TODO</span>
+A clear challenge in injury prediction with a public dataset is that there is no clear indication whether injuries are truly random to the extent of failing to predict them accurately, or if the role of coaches (and their intervention to prevent injuries of players who they see in risk) inherently biases the data. Analysis showed no clear indications that certain there would be significant differences among teams.  
+
+As it is generally the case, better data could help enhance the analysis. Specifically more variables indicating player conditions, as well as more descriptive data on past play (distances run, sprints, etc.) could be used to better separate the workload of players before each game.  
 
 ## A time window concept for injuries
-<span style="color:red">##TODO</span>
+An interesting idea was present in a recent conference paper [@nba] on in-game injuries happening in the NBA.  
+
+The authors present a time window technique: rather than trying to predict if a player will get injured during a game, they use a multiple-day prediction window for injuries.  
+
+Theoretically, the same idea can be applied to soccer injuries. While this project does not provide a deep investigation into the workability of the concept, a brief look is provided into what it could offer.  
+
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Injury rates by Time Windows.jpeg")
+```
+
+In total 5 Random Forest models were trained (similarly as before). The comparison of their ROC curves can be seen below:  
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/99999. ROC curves for different prediction time windows.jpeg")
+```
+
+From the prediction perspective, it looks like that an ideal time window is somewhere in the 14 - 21 days range. It should be noted however, that even with an improvement in the TPR / FPR trade-off, a cost-efficient method could not be implemented, as the ratio of false positives is still too high.  
+
+Different time windows can be calibrated similarly - while none is perfect, each one is reasonable in terms of risk ranking:  
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/99999. Calibrated probability plots for different time windows.jpeg")
+```
+
+Last but not least, all windows value the importance of different factors (variables) similarly, even though not identically. This confirms the role these factors have in injury risk, but the differences also encourge for further feature insepction.
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/99999. Variable Importance across prediction time windows.jpeg")
+```
 
 \pagebreak
 
-# Appendix {.tabset}  
+# Appendix 
 ## Contact details
 The author of this paper can be contacted directly via *t.koncz@gmail.com*.  
 

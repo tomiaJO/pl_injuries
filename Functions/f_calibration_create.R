@@ -10,7 +10,7 @@ f_calibration_create <- function(score, truth) {
   
   actual_vs_predicted <- actual_vs_predicted %>%
                           mutate(score_category = cut(predicted, 
-                                                      seq(min_prob, max_prob, (max_prob - min_prob) / 20), 
+                                                      seq(min_prob, max_prob, (max_prob - min_prob) / 10), 
                                                       include.lowest = TRUE))
   
   calibration <- actual_vs_predicted %>%

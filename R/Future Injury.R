@@ -3,8 +3,8 @@
 source("GlobalStartup.R")
 
 ## set parallel processing
-cl <- makePSOCKcluster(2)
-registerDoParallel(cl)
+# cl <- makePSOCKcluster(2)
+# registerDoParallel(cl)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Read in prepared training & test sets
@@ -25,93 +25,93 @@ data_test_28  <- readRDS(paste(path_Data, "data_test_28.RDS",  sep = "/"))
 ctrl <- trainControl(method = "cv",
                      classProbs = TRUE,
                      summaryFunction = twoClassSummary,
-                     sampling = "down")
+                     sampling = "smote")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Tuning grid for caret
-tg_rf <- expand.grid(.mtry = c(4:16),
-                     .splitrule = "gini",
-                     .min.node.size = c(25, 50, 75, 100, 125))
-
-Sys.time()
-
-## injured
-## RF
+# tg_rf <- expand.grid(.mtry = c(5:7),
+#                      .splitrule = "gini",
+#                      .min.node.size = c(125, 150, 175))
+# 
+# Sys.time()
+# 
+# ## injured
+# ## RF
 # set.seed(93)
 # m_rf_0 <- train(x = data_train[, names(data_train) != "injured"],
-#                 y = data_train$injured,       
+#                 y = data_train$injured,
 #                 method     = "ranger",
 #                 metric     = "ROC",
 #                 trControl  = ctrl,
 #                 tuneGrid   = tg_rf,
-#                 num.trees = 1000,
+#                 num.trees = 250,
 #                 importance = "impurity")
 # 
 # saveRDS(object = m_rf_0, file = paste(path_Models, "m_rf_0.RDS", sep = "/"))
 # rm(m_rf_0)
 # Sys.time()
-
-## 7 days
+# 
+# ## 7 days
 # set.seed(93)
 # m_rf_7 <- train(x = data_train_7[, names(data_train_7) != "injured_7days"],
-#                 y = data_train_7$injured_7days,       
+#                 y = data_train_7$injured_7days,
 #                 method     = "ranger",
 #                 metric     = "ROC",
 #                 trControl  = ctrl,
 #                 tuneGrid   = tg_rf,
-#                 num.trees = 1000,
+#                 num.trees = 250,
 #                 importance = "impurity")
 # 
 # saveRDS(object = m_rf_7, file = paste(path_Models, "m_rf_7.RDS", sep = "/"))
 # rm(m_rf_7)
 # Sys.time()
-
-## 14 days
+# 
+# ## 14 days
 # set.seed(93)
 # m_rf_14 <- train(x = data_train_14[, names(data_train_14) != "injured_14days"],
-#                  y = data_train_14$injured_14days,        
+#                  y = data_train_14$injured_14days,
 #                  method     = "ranger",
 #                  metric     = "ROC",
 #                  trControl  = ctrl,
 #                  tuneGrid   = tg_rf,
-#                  num.trees = 1000,
+#                  num.trees = 250,
 #                  importance = "impurity")
 # 
 # saveRDS(object = m_rf_14, file = paste(path_Models, "m_rf_14.RDS", sep = "/"))
 # rm(m_rf_14)
 # Sys.time()
-
-## 21 days
+# 
+# ## 21 days
 # set.seed(93)
 # m_rf_21 <- train(x = data_train_21[, names(data_train_21) != "injured_21days"],
-#                  y = data_train_21$injured_21days,        
+#                  y = data_train_21$injured_21days,
 #                  method     = "ranger",
 #                  metric     = "ROC",
 #                  trControl  = ctrl,
 #                  tuneGrid   = tg_rf,
-#                  num.trees = 1000,
+#                  num.trees = 250,
 #                  importance = "impurity")
 # 
 # saveRDS(object = m_rf_21, file = paste(path_Models, "m_rf_21.RDS", sep = "/"))
 # rm(m_rf_21)
 # Sys.time()
-
-## 28 days
+# 
+# ## 28 days
 # set.seed(93)
 # m_rf_28 <- train(x = data_train_28[, names(data_train_28) != "injured_28days"],
-#                  y = data_train_28$injured_28days,         
+#                  y = data_train_28$injured_28days,
 #                  method     = "ranger",
 #                  metric     = "ROC",
 #                  trControl  = ctrl,
 #                  tuneGrid   = tg_rf,
-#                  num.trees = 1000,
+#                  num.trees = 250,
 #                  importance = "impurity")
 # 
 # saveRDS(object = m_rf_28, file = paste(path_Models, "m_rf_28.RDS", sep = "/"))
 # rm(m_rf_28)
 # Sys.time()
-
-stopCluster(cl)
+# 
+# stopCluster(cl)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## MODEL EVALUATION

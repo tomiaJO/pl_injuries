@@ -41,11 +41,14 @@ model_list <- list(
 ## ROC Curves and AUC
 test_eval <- f_model_comparison(models = model_list, df_test = data_test)
 
-test_eval$auc
+## AUC
+data_eval_auc <- test_eval$auc
+
+saveRDS(object = data_eval_auc, file = paste(path_Data, "data_eval_auc.RDS", sep = "/"))
 
 p_roc <- test_eval$plot +
             labs(title    = "ROC Curves for different models",
-                 subtitle = "Models fitted via smote-sampling of the majority class",
+                 subtitle = "Models were tuned using SMOTE-sampling",
                  caption  = "Note: Results are measured on a held-out test set not used in model fitting") +
             technical_theme() +
             theme(legend.position = "right",
@@ -124,17 +127,13 @@ variable_importance <- f_variable_importance(model_list)
 ## TODO: issues with format...
 p_vi <- variable_importance %>%
           mutate(Variable = gsub(pattern = "`", replace = "", x = Variable)) %>%
-          mutate(Importance = ifelse(!is.na(Importance), Importance, 0)) %>%
           tidyr::spread(key = "Model", value = "Importance") %>%
           mutate(Variable = reorder(Variable, `Random Forest`)) %>%
+          filter(`Random Forest` >= 25 | GLMNet >= 25) %>%
           tidyr::gather(key = "Model", value = "Importance", -Variable) %>%
           mutate(Model = factor(Model, levels = names(model_list))) %>%
           mutate(Type = ifelse(Model %in% c("Random Forest", "XGBoost"), "Tree-based", "Linear")) %>%
-          group_by(Variable) %>%
-          mutate(`Min. Importance` = max(Importance, na.rm = TRUE)) %>%
-          ungroup() %>%
-          filter(`Min. Importance` >= 25) %>%
-          select(-`Min. Importance`) %>%
+          mutate(Importance = ifelse(!is.na(Importance), Importance, 0)) %>%
           ggplot(aes(x = Variable, y = Importance, shape = Model)) +
           geom_line(aes(group = Variable), size = 1.35, alpha = 0.55) +  
           geom_point(size = 3.5, fill = "black") +
@@ -145,7 +144,7 @@ p_vi <- variable_importance %>%
           coord_flip() +
           facet_wrap(~Type) +
           labs(title = "Variable Importance across models",
-               caption = "Note: Only variables scoring 40 or above at least once are shown")
+               caption = "Note: Only variables scoring 25 or above at least once are shown")
 
 ggsave(filename = paste(path_Figures, "9999. Variable Importance across models.jpeg", sep = "/"), 
        plot = p_vi, 
@@ -174,7 +173,7 @@ p_coef_glmnet_smote <- df_coef_glmnet_smote %>%
                           labs(title = "Coefficent values for GLMNet model",
                                x = "",
                                y = "",
-                               caption = "Note: Only variables with relative importance above 0.01 are shown") +
+                               caption = "Note: Only variables with relative importance above 0.05 are shown") +
                           story_theme() +
                           theme(legend.position = "none")
 
@@ -194,6 +193,7 @@ df_bias <- data_frame("injured"       = data_test$injured,
                       "Random Forest" = pred_rf_smote_calibrated,
                       "XGBoost"       = pred_xgboost_smote_calibrated)
 
+
 ## By year
 df_bias %>% 
   group_by(Year) %>%
@@ -203,4 +203,24 @@ df_bias %>%
             `Probit`        = mean(Probit),
             `GLMNet`        = mean(GLMNet),
             `Random Forest` = mean(`Random Forest`),
-            `XGBoost`       = mean(`XGBoost`))
+            `XGBoost`       = mean(`XGBoost`)) %>%
+  ungroup() %>%
+  select(-Count) %>%
+  rename("Actual" = "Injury Rate") %>%
+  tidyr::gather(key = "Type", value = "Injury Rate", -Year) %>%
+  mutate(Type = factor(Type, levels = c("Actual", "Logit", "Probit", "GLMNet", "Random Forest", "XGBoost"))) %>%
+  ggplot(aes(x = Year, y = `Injury Rate`, color = Type)) +
+    geom_point(size = 3) +
+    geom_line(size = 1.5) +
+    scale_y_continuous(limits = c(0, 0.0175)) +
+      scale_colour_manual(values = c("firebrick", "grey60", "grey80", "grey20", "steelblue2", "grey40")) +
+    labs(title = "Prediction bias over years",
+         subtitle = "Average injuries rates") +
+    story_theme() +
+    theme(legend.title = element_blank())
+
+ggsave(filename = paste(path_Figures, "xxx. Prediction bias over years.jpeg", sep = "/"),
+        plot = last_plot(), 
+       device = "jpeg", 
+       width = 4, height = 6,
+       dpi = 400)

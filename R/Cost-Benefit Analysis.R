@@ -3,7 +3,7 @@
 source("GlobalStartup.R")
 
 ## Load data
-data_test  <- readRDS(file = paste(path_Data,   "data_test.RDS",      sep = "/"))
+data_test  <- readRDS(file = paste(path_Data,   "data_perfomance.RDS",      sep = "/"))
 
 ## Load model
 model      <- readRDS(file = paste(path_Models, "m_rf_smote.RDS",      sep = "/"))
@@ -40,21 +40,37 @@ for (ix in 1:length(thresholds)) {
 
 pred_vs_thr <- do.call("rbind", pred_vs_thr)
 
-pred_vs_thr %>%
+p <- pred_vs_thr %>%
   mutate(`Prediction based missed time` = ifelse(Predictions == "Yes", 3.5, ifelse(Actual == "Yes", Length, 0))) %>%
   group_by(Threshold) %>%
   summarize(`Prediction based missed time` = sum(`Prediction based missed time`),
             `Actual missed time`           = sum(Length)) %>% 
-  View()
   tidyr::gather(key = "Method", value = "Value", -Threshold) %>%
   ggplot(aes(x = Threshold, y = Value, color = Method)) +
-    geom_line() +
-    theme_minimal() +
-   # scale_x_continuous(limits = c(0.5, 0.8)) 
-   scale_y_continuous(limits = c(0, 9500))
+    geom_line(size = 2) +
+    scale_x_continuous(limits = c(0.475, 0.725)) +
+    scale_y_continuous(limits = c(3000, 4500), labels = scales::comma) +
+    scale_colour_manual(values = c("firebrick", "steelblue2")) +
+    labs(title = "Comparison of prediction based resting vs actual missed time",
+         subtitle = "Calculated on set-aside 2017 data",
+         y = "Missed time",
+         x = "Resting cut-off",
+         caption = "Note: If a player is rested, it is assumed he misses 3.5 days.\nOtherwise his actual missed time is counted") +
+    technical_theme() +
+    theme(legend.title = element_blank(),
+          legend.position = "top",
+          axis.text.x = element_blank())
 
-pred_class <- ifelse(pred_prob$`Predicted Probability` > 0.825, "Yes", "No")
+ggsave(filename = paste(path_Figures, "xxx. Cost-benefit.jpeg", sep = "/"),
+       plot = p, 
+       device = "jpeg", 
+       width = 5, height = 4,
+       dpi = 650)
+
+pred_vs_thr %>% filter(Actual == "Yes") %>% summarize(mean = mean(Length))
+
+pred_class <- ifelse(pred_prob$`Predicted Probability` > 0.500, "Yes", "No")
 pred_class <- factor(pred_class, levels = c("Yes", "No"))
-confusionMatrix(data = pred_class, reference = pred_prob$injured) %>% as.matrix()
-
+saveRDS(confusionMatrix(data = pred_class, reference = pred_prob$injured)$table,
+        file = paste(path_Data, "data_cm.RDS", sep = "/"))
 

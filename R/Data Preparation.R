@@ -197,6 +197,42 @@ injuries <- injuries %>%
               select(-game_count)
 
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## VISUALIZE: Injury count over years & teams
+p1 <- injuries %>%
+        filter(Team != "Other") %>%
+        group_by(Year) %>%
+        summarize(`Lost player days` = sum(injury_length)) %>%
+        ggplot(aes(x = Year, y = `Lost player days`)) +
+          geom_bar(stat = "identity", fill = "firebrick") +
+          labs(subtitle = "Total injury length per year",
+               caption = "Note: Only teams present in the Premier League \nall years between 2010-2017 are included") +
+          story_theme() +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p2 <- injuries %>%
+        filter(Team != "Other") %>%
+        group_by(Team) %>%
+        summarize(`Lost player days` = sum(injury_length)) %>%
+        ggplot(aes(x = Team, y = `Lost player days`)) +
+        geom_bar(stat = "identity", fill = "steelblue2") +
+        labs(subtitle = "Total injury length per Team") +
+        story_theme() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+g <- arrangeGrob(p1,
+                 p2,
+                 ncol = 2,
+                 top = grid::textGrob("Lost player days due to lower body strains", 
+                                      gp = grid::gpar(fontfamily = "Garamond", fontsize = 18, lineheight = 1.25),
+                                      hjust = .9))
+
+ggsave(filename = paste(path_Figures, "xxx. Lost player days due to lower body strains.jpeg", sep = "/"),
+       plot = g,
+       device = "jpeg",
+       width = 8,
+       height = 4,
+       dpi = 500)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: Injury vs Minutes played in a given game
@@ -219,49 +255,49 @@ f_save_plots(save_plots = save_plots,
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE time window for injuries
 ## common sense check
-# injuries %>%
-#   summarize(sum(injured),
-#             sum(injured_7days),
-#             sum(injured_14days),
-#             sum(injured_21days),
-#             sum(injured_28days))
-# 
-# p_future_rates <- injuries %>%
-#                     summarize(game_count         = n(),
-#                               injury_rate        = sum(injured)        / game_count,
-#                               injury_rate_7days  = sum(injured_7days)  / game_count,
-#                               injury_rate_14days = sum(injured_14days) / game_count,
-#                               injury_rate_21days = sum(injured_21days) / game_count,
-#                               injury_rate_28days = sum(injured_28days) / game_count) %>%
-#                     select(-game_count) %>%
-#                     rename("Game day"  = "injury_rate") %>%
-#                     rename("7 days"    = "injury_rate_7days") %>%
-#                     rename("14 days"   = "injury_rate_14days") %>%
-#                     rename("21 days"   = "injury_rate_21days") %>%
-#                     rename("28 days"   = "injury_rate_28days") %>%
-#                     tidyr::gather(key = "Time Window", value = "Injury Rate") %>%
-#                     mutate(`Time Window` = factor(`Time Window`, levels = c("Game day", "7 days", "14 days", "21 days", "28 days")),
-#                            `Injury Rate` = as.numeric(`Injury Rate`) * 100) %>% 
-#                     ggplot(aes(x = `Time Window`, y = `Injury Rate`, label = formatC(`Injury Rate`, digits = 2, format = "f"))) +
-#                       geom_line(aes(group = 1), colour = "grey40", size = 1.75) +
-#                       geom_point(colour = "white", size = 12) +
-#                       geom_text() +
-#                       scale_y_continuous(limit = c(0, 4.0), labels = function(x) sprintf("%.2f", x)) +
-#                       labs(title = "Average injury rates by time windows",
-#                            y = "Injury Rate (%)",
-#                            x = "Time Window") +
-#                       technical_theme() +
-#                       theme(axis.text.x = element_text(angle = 45, hjust = 1), 
-#                             panel.grid  = element_blank(),
-#                             axis.ticks = element_line(),
-#                             axis.line = element_line())
-# 
-# 
-# f_conditional_ggsave(save = T, 
-#                      p = p_future_rates, 
-#                      filepath = paste(path_Figures, "xxx. Injury rates by Time Windows.jpeg", sep = "/"), 
-#                      w = 6, 
-#                      h = 4)
+injuries %>%
+  summarize(sum(injured),
+            sum(injured_7days),
+            sum(injured_14days),
+            sum(injured_21days),
+            sum(injured_28days))
+
+p_future_rates <- injuries %>%
+                    summarize(game_count         = n(),
+                              injury_rate        = sum(injured)        / game_count,
+                              injury_rate_7days  = sum(injured_7days)  / game_count,
+                              injury_rate_14days = sum(injured_14days) / game_count,
+                              injury_rate_21days = sum(injured_21days) / game_count,
+                              injury_rate_28days = sum(injured_28days) / game_count) %>%
+                    select(-game_count) %>%
+                    rename("Game day"  = "injury_rate") %>%
+                    rename("7 days"    = "injury_rate_7days") %>%
+                    rename("14 days"   = "injury_rate_14days") %>%
+                    rename("21 days"   = "injury_rate_21days") %>%
+                    rename("28 days"   = "injury_rate_28days") %>%
+                    tidyr::gather(key = "Time Window", value = "Injury Rate") %>%
+                    mutate(`Time Window` = factor(`Time Window`, levels = c("Game day", "7 days", "14 days", "21 days", "28 days")),
+                           `Injury Rate` = as.numeric(`Injury Rate`) * 100) %>%
+                    ggplot(aes(x = `Time Window`, y = `Injury Rate`, label = formatC(`Injury Rate`, digits = 2, format = "f"))) +
+                      geom_line(aes(group = 1), colour = "grey40", size = 1.75) +
+                      geom_point(colour = "white", size = 12) +
+                      geom_text() +
+                      scale_y_continuous(limit = c(0, 4.0), labels = function(x) sprintf("%.2f", x)) +
+                      labs(title = "Average injury rates by time windows",
+                           y = "Injury Rate (%)",
+                           x = "Time Window") +
+                      technical_theme() +
+                      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+                            panel.grid  = element_blank(),
+                            axis.ticks = element_line(),
+                            axis.line = element_line())
+
+
+f_conditional_ggsave(save = T,
+                     p = p_future_rates,
+                     filepath = paste(path_Figures, "xxx. Injury rates by Time Windows.jpeg", sep = "/"),
+                     w = 6,
+                     h = 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: Injury vs Age

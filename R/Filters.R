@@ -58,63 +58,6 @@ injuries <- injuries %>%
               filter(Foot != "")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-## REMOVE goalkeepers & missing position
-p_by_position1 <- injuries %>%
-                    mutate(Position = ifelse(Position == "", "Missing", Position)) %>%
-                    group_by(Position) %>%
-                    summarize(game_count = n()) %>%
-                    ungroup() %>%
-                    mutate(Position = reorder(Position, game_count)) %>%
-                    ggplot(aes(x = Position, y = game_count)) +
-                    geom_bar(stat = "identity", fill = "steelblue2") +
-                    scale_y_continuous(labels = scales::comma) +
-                    coord_flip() + 
-                    labs(y = "# of games",
-                         x = "Position",
-                         title = "Positional breakdown",
-                         subtitle = "Games Played") +
-                    story_theme()
-
-
-l_by_position2 <- injuries %>%
-                    mutate(Position = ifelse(Position == "", "Missing", Position)) %>%
-                    f_plot_ir(s_x = "Position")
-
-p_by_position2 <- l_by_position2$data %>%
-                    mutate(Position = factor(Position, levels = c("Missing", "Goalkeeper", "Defender", "Midfielder", "Attacker"))) %>%
-                    ggplot(aes(x = Position, y = injury_rate_pct, label = formatC(injury_rate_pct, digits = 2, format = "f"))) + 
-                    geom_point(stat='identity', color = "firebrick", size = 6) +
-                    geom_segment(aes(y = ci95_lower_injury_rate_pct, 
-                                     yend = ci95_upper_injury_rate_pct, 
-                                     x = Position, 
-                                     xend = Position), 
-                                 color = "firebrick") +
-                    geom_text(color = "white", size = 2) +
-                    coord_flip() + 
-                    labs(y        = "Injury Rate (%)",
-                         x        = "Position",
-                         title    = "",
-                         subtitle = "Injury Rates") +
-                    story_theme() +
-                    theme(axis.text.y = element_blank(),
-                          axis.title.y = element_blank())
-
-
-g <- arrangeGrob(p_by_position1, p_by_position2, layout_matrix = rbind(c(1,1,1,2,2)))
-
-f_conditional_ggsave(save = save_plots, 
-                     p = g, 
-                     filepath = paste(path_Figures, "6. Injuries vs Position.jpeg", sep = "/"), 
-                     w = 6, 
-                     h = 4.5)
-
-injuries <- injuries %>%
-              #Note1 - Goalkeepers: very different dynamics, as shown by the Injury rate %
-              filter(Position != "Goalkeeper") %>%
-              #Note2 - Missing: don't trust that data very much
-              filter(Position != "")
-
-##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## REMOVE non "lower body strain" injuries
 p_injury_types <- injuries %>%
                     filter(injury_type != '0') %>%
@@ -188,6 +131,62 @@ injuries <- injuries %>%
                                                                   "Calf Muscle Strain", 
                                                                   "Thigh Muscle Strain")))
 
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## REMOVE goalkeepers & missing position
+p_by_position1 <- injuries %>%
+  mutate(Position = ifelse(Position == "", "Missing", Position)) %>%
+  group_by(Position) %>%
+  summarize(game_count = n()) %>%
+  ungroup() %>%
+  mutate(Position = reorder(Position, game_count)) %>%
+  ggplot(aes(x = Position, y = game_count)) +
+  geom_bar(stat = "identity", fill = "steelblue2") +
+  scale_y_continuous(labels = scales::comma) +
+  coord_flip() + 
+  labs(y = "# of games",
+       x = "Position",
+       title = "Positional breakdown",
+       subtitle = "Games Played") +
+  story_theme()
+
+
+l_by_position2 <- injuries %>%
+  mutate(Position = ifelse(Position == "", "Missing", Position)) %>%
+  f_plot_ir(s_x = "Position")
+
+p_by_position2 <- l_by_position2$data %>%
+  mutate(Position = factor(Position, levels = c("Missing", "Goalkeeper", "Defender", "Midfielder", "Attacker"))) %>%
+  ggplot(aes(x = Position, y = injury_rate_pct, label = formatC(injury_rate_pct, digits = 2, format = "f"))) + 
+  geom_point(stat='identity', color = "firebrick", size = 6) +
+  geom_segment(aes(y = ci95_lower_injury_rate_pct, 
+                   yend = ci95_upper_injury_rate_pct, 
+                   x = Position, 
+                   xend = Position), 
+               color = "firebrick") +
+  geom_text(color = "white", size = 2) +
+  coord_flip() + 
+  labs(y        = "Injury Rate (%)",
+       x        = "Position",
+       title    = "",
+       subtitle = "Injury Rates") +
+  story_theme() +
+  theme(axis.text.y = element_blank(),
+        axis.title.y = element_blank())
+
+
+g <- arrangeGrob(p_by_position1, p_by_position2, layout_matrix = rbind(c(1,1,1,2,2)))
+
+f_conditional_ggsave(save = save_plots, 
+                     p = g, 
+                     filepath = paste(path_Figures, "6. Injuries vs Position.jpeg", sep = "/"), 
+                     w = 6, 
+                     h = 4.5)
+
+injuries <- injuries %>%
+  #Note1 - Goalkeepers: very different dynamics, as shown by the Injury rate %
+  filter(Position != "Goalkeeper") %>%
+  #Note2 - Missing: don't trust that data very much
+  filter(Position != "")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## REMOVE injury length less than two weeks
@@ -292,10 +291,9 @@ p_by_minutes <- p_by_minutes +
                 scale_x_continuous(labels = scales::comma) +
                 scale_y_continuous(labels = scales::comma) +
                 labs(y = "Density",
-                     x = "Minutes played in the PL season",
-                     title = "Minutes",
-                     subtitle = "s_subtitle",
-                     caption = "s_caption") +
+                     title = "Injury frequencies are similar among high- and low-minute players",
+                     x = "Minutes",
+                     subtitle = "Minutes played in the PL season vs Injury Rates") +
                 story_theme()
 
 f_conditional_ggsave(save = save_plots, 
