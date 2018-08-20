@@ -1,12 +1,12 @@
 ---
 title: 'Project Technical Discussion: A data-based approach to prevent lower body muscle strains in soccer'
 author: "Tamas Koncz"
-date: "August 11, 2018"
+date: "August 21, 2018"
 output:
   html_document:
     number_sections: yes
     toc: yes
-    toc_depth: 2
+    toc_depth: 3
 bibliography: references.bib
 ---
 
@@ -27,19 +27,23 @@ opts_chunk$set(echo    = FALSE)
   
 # Introduction 
 
-<span style="color:red">##TODO</span> 
+The aim of this analysis is to identify direct links between injury risk of professional soccer players and certain relatable factors.  
 
+Specifically, the injuries in focus are muscle strains happening in the lower body. A large collection of player level information was used to explore the existing relationships, using visual and statistical modeling methods.  
+
+While it was not possible to establish an accurate prediction system for individual injuries, this paper demonstrates that there are other valuable insights that coudl be gathered. Among the most important ones are the impact of past injuries on future risk.  
+
+The last section contains suggestions for future work, amongs them an interesting concept of investigating injuries in multiple-day time windows, rather than treating them as in-game occurances.  
 \pagebreak
 
 # Scope
 
 Data used for this exercise is a per game per player level collection of the Premier League matches between 2003 and 2018.  
+This data is publicly available, however not in organized format, hence it cannot be shared without explicit permission.  
 
 The target variable for prediction is "injured" - 1 if player was reported injured after the game, 0 otherwise. Descriptive data is also available on the type of the injury, and how long it reportedly last.  
 
 The list of Other variables can be found in the Appendix.
-
-<span style="color:red">add sentence re. source</span> 
 
 \pagebreak
 
@@ -262,7 +266,7 @@ data_test  <- training_set[-train_indices, ] %>% as.data.frame()
 
 *Note: cross-validation was used on the training set, for model tuning*  
 
-### The problem of class imbalance
+## The problem of class imbalance
 
 Based on the previous definition of "injured", the cleaned data set consist of only 1.02% of positive cases.
 This makes it highly imbalanced, something that can hurt model performance for classification tasks.  
@@ -278,7 +282,7 @@ In machine learning application there are multiple ways of addressing this issue
 
 Let's review 1. in more detail, which was used for this analysis.
 
-#### Sub-sampling techniques for learning from imbalanced data
+### Sub-sampling techniques for learning from imbalanced data
 
 There are three possible ways to sub-sample data for better predictive performance: up-sampling, down-sampling, and methods mixing the two, like SMOTE. Each carryies their own benefits and disadvantages, as per [@imbalanced1].
 
@@ -304,12 +308,13 @@ If subsampling is done before fitting a model, it will introduce two problems:
 2. Added uncertainity: we won't know for sure how results would look like with a different subsample. Similar effects arise as in the point above.  
 
 
-#### A practical comparison of different sub-sampling methods
+### A practical comparison of different sub-sampling methods
 
 Below is a summary of different sub-sampling techniques applied to the injury prediction problem.  For this analysis, similar Random Forest models were tuned with the different sampling techniques.  
 
 *Note: Technical details of the model fitting process are covered in a later section. For now, just note that the "caret" R library [@caret] was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document. Random Forests were fit with the "ranger" library [@ranger], while SMOTE sampling uses the "DMwR" library [@DMwR].*  
 
+#### AUC and ROC curves  
 First, let's refer to the all-in-one metric of classification problems, area under the curve:  
 
 ```{r}
@@ -332,7 +337,31 @@ ROC curves are also very similar. SMOTE may be somewhat better performing at low
 Neither sampling method is particularly strong, which projects the issues of using models for decision making of player resting.  
 This is not he only use-case of analytics however: ranking players by injury risk, or understanding the driving forces behind injury probabilities can also provide value to either coaches, or also to front-offices evaluating different players.  
 
-The first aspect, how realistic the probabilities predicted are on average, will be reviewed here. The impact of different variables are covered later.
+The first aspect, how realistic the probabilities predicted are on average, will be reviewed here. The impact of different variables are covered when discussing modeling results.
+
+#### Probability calibrations  
+
+Any sub-sampling method will modify the a-prior probabilites of the training data, hence the predicted probabilities of the classifier will be biased. 
+
+The below chart demonstrates this problem in practice:
+```{r, out.width = '100%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Uncalibrated probability plots.jpeg")
+```
+
+Many methods exist for calibration of sample-biased probabilites. Practical and simple, formula based solutions can be found in [@calibration1] and [@calibration2]. Other methods include regressing the target variable to predictions, but this is not a feasible approach if the original dataset is highly imbalanced.  
+
+This analysis implemented the rescaling as below, where original_fraction is the ratio of the minority class in the original sample, oversampled_fraction is the biased predicted ratio, and score is the individual prediction for a given instance.
+```{r, echo = TRUE, eval = FALSE}
+f_recalibrate <- function(original_fraction, oversampled_fraction, score) {
+  per_p <- 1 + (1 / original_fraction - 1) / (1 / oversampled_fraction - 1) * (1 / score - 1)
+  p <- 1 / per_p
+  
+  return(p)
+}
+```
+
+Application of this correction results in the new probabilites can be seen below. As demonstrated, these probabilites are better in line with actual occurance ratios.  
+
 ```{r, out.width = '100%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Calibrated probability plots.jpeg")
 ```
@@ -438,7 +467,7 @@ A 1000 trees were fit to make predictions. Tuning parameters included the number
 
 ### Gradient Boosting (XGBoost)
 
-XGBoost [@xgboost] is a widely-used implementation of extreme gradient boosting. The workings and parameters of XGBoost is well covered [here] (https://github.com/dmlc/xgboost/blob/master/R-package/vignettes/xgboostPresentation.Rmd).  
+XGBoost [@xgboost] is a widely-used implementation of extreme gradient boosting. The workings and parameters of XGBoost is well covered [here](https://github.com/dmlc/xgboost/blob/master/R-package/vignettes/xgboostPresentation.Rmd).  
 
 While gradient boosting tends to perform better than random forests on many problems, they are complicated to fit well, due to the large number of tuning parameters. Training XGBoost, while reasonabily fast, is also significantly slower than training Random Forests (with *ranger*), due to the same reason.  
 
@@ -453,151 +482,216 @@ tg_xgb <- expand.grid(nrounds          = c(250, 500),
                       subsample        = c(5:9 / 10))
 
 train(injured ~ .,
-      method = "xgbTree",
-      metric = "ROC",
-      data = data_train,
+      method    = "xgbTree",
+      metric    = "ROC",
+      data      = data_train,
       trControl = ctrl,
-      tuneGrid = tg_xgb)
+      tuneGrid  = tg_xgb)
 ```
 
 
-<!-- ## Results {.tabset} -->
+## Results {.tabset}
 
-<!-- ### Prediction performance -->
+### Predictions
 
-<!-- ```{r, out.width = '65%', fig.align = 'center'} -->
-<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Model performance - resampling.jpeg") -->
-<!-- ``` -->
+As with before, evaluation will start with reviewing AUC values and ROC curves for models being compared.  
 
-<!-- ```{r, out.width = '75%', fig.align = 'center'} -->
-<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. ROC Curve achieved by different models.jpeg") -->
-<!-- ``` -->
+#### Evaluation based on AUC and ROC curves
+```{r}
+readRDS(file = "C:/Users/tkonc/Documents/pl_injuries/Data/data_eval_auc.RDS") %>%
+  kable(digits = 4,
+        align = NULL) %>%
+  kable_styling(full_width = F)
+```
 
-<!-- <span style="color:red">##TODO: XGBoost seems best (as expected). Do write-up once models / variables are finalized</span>  -->
+Random Forest has a significant, 0.025 lead over the second best model, XGBoost.
 
-<!-- ### Variable importance -->
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. ROC Curves for different models.jpeg")
+```
 
-<!-- ```{r, out.width = '75%', fig.align = 'center'} -->
-<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Variable Importance.jpeg") -->
-<!-- ``` -->
+This is due its ability to better classify positives under lower cut-off thresholds, as demonstrated by the ROC curve. XGBoost perform similarly in the upper-range of the FPR-scale.  
 
-<!-- <span style="color:red"> -->
-<!-- Currently big differences from model to model in which variables are most important...   -->
-<!-- Likely due to many correlations (Logit / Probit / GLMNet were very similar).   -->
-<!-- Squared version could be removed from tree-based methods.   -->
+The linear models are somewhat lagging behind, specially without regularization. This is a good sign that injury probability not always has a linear relationship with the predictor variables.  
 
-<!-- Also, pick few examples, explain with LIME -->
-<!-- </span>  -->
+Unfortunately, no model has a very strong performance. This indicates that classifications could not be a primary decision-making input. Consequences, and mitigation will be covered in sections "Cost-benefit analysis" and "A time window concept for injuries", respectively.  
 
-<!-- \pagebreak -->
+#### Probability calibrations  
 
-<!-- # Cost-benefit analysis -->
+Even if predicted probabilities are not accurate enough on their own, they do have value, if their ability to rank players from low to high risk is good, at least on the average.  
 
-<!-- <span style="color:red">##TODO: Simple numeric example on sum of missed time using algorithmic solution vs not</span>  -->
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Calibrated probability plots.jpeg")
+```
 
-<!-- \pagebreak -->
+The two models that produce relatively well-scaled predictions are GLMNet and Random Forest. Suprisingly, XGBoost does not handle well the imbalance - it correctly assumes that most cases have fallen into the very-low probability group, however it is not able to predict on scale for higher risk players.  
 
-<!-- # Appendix {.tabset .tabset-fade .tabset-pills} -->
-<!-- ## Project organization   -->
+Based on the above, Random Forest is selected as the best possible model for prediction of injuries. An evaluation of practical value in player resting is covered in the next section.  
 
-<!-- This project is breaken into separte, runable parts, which are not included in this markdown file.   -->
-<!-- The main parts are:   -->
-<!-- 1. Raw Data   -->
-<!-- 2. Runable R scripts, storing the steps of the analysis   -->
-<!-- 3. Functions   -->
-<!-- 4. Models   -->
-<!-- 5. Notebooks   -->
-<!-- 6. Figures   -->
-<!-- 7. Data   -->
+### Cost-benefit analysis
+<span style="color:red">##TODO</span>
 
-<!-- <span style="color:red">##TODO: add details</span>  -->
+### Variable importance  
 
-<!-- ## List of variables in raw data -->
+Caret allows for an easy extraction of relative variable importances for any model kind. This makes it possible to compare the relative importances across models, even if their mechanics are different.
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Variable Importance across models.jpeg")
+```
+The first thing that can be said is that different models weight variables very differently. This is likely due to differences in their ability to grasp non-linearities, as well as being caused by the high correlation among variables.  
 
-<!-- ```{r} -->
-<!-- kable(data.frame( -->
-<!-- "Variable" = c("Date", -->
-<!-- "balance", -->
-<!-- "ft_a", -->
-<!-- "ft_h", -->
-<!-- "Attendance", -->
-<!-- "Game week", -->
-<!-- "Kick-off", -->
-<!-- "Venue", -->
-<!-- "home", -->
-<!-- "ht_a", -->
-<!-- "ht_h", -->
-<!-- "injured", -->
-<!-- "mid", -->
-<!-- "minutes", -->
-<!-- "pid", -->
-<!-- "starter", -->
-<!-- "injury_length", -->
-<!-- "injury_type", -->
-<!-- "injury_minutes_played", -->
-<!-- "days_till_injury", -->
-<!-- "pl/all_minutes/games_n/season", -->
-<!-- "Country of birth", -->
-<!-- "Date of birth", -->
-<!-- "First name", -->
-<!-- "Foot", -->
-<!-- "Height", -->
-<!-- "Last name", -->
-<!-- "Nationality", -->
-<!-- "Place of birth", -->
-<!-- "Position", -->
-<!-- "Weight", -->
-<!-- "away_team", -->
-<!-- "away_tid", -->
-<!-- "home_team", -->
-<!-- "home_tid"), -->
-<!-- "Description" = c("date of the game (YYYY-MM-DD)", -->
-<!-- "absolute full time goal difference=|ft_a - ft_h|", -->
-<!-- "full time away team goals", -->
-<!-- "full time home team goals", -->
-<!-- "number of fans at the game", -->
-<!-- "game week of the season", -->
-<!-- "kickoff time (GMT)", -->
-<!-- "Location of the stadium", -->
-<!-- "whether player lines up or the home side or not", -->
-<!-- "half time away team goals", -->
-<!-- "half time home team goals", -->
-<!-- "whether player was reported injured after the match, (before playing any other match) or not", -->
-<!-- "unique match id", -->
-<!-- "minutes played by the player on the match (stoppage time is discarded, so cannot be more than 90)", -->
-<!-- "unique player id", -->
-<!-- "whether player started the match or not", -->
-<!-- "if player was reported after the game, how many days did the injury reportedly last", -->
-<!-- "what type of injury was reported", -->
-<!-- "equals the minutes variable in case of injured = 1, otherwise 0", -->
-<!-- "how many days between the date of the match and start of reported injury", -->
-<!-- "how many games/minutes of premier league/any other football played by player in the n/days before the match (or in the season, total)", -->
-<!-- "player country of birth", -->
-<!-- "player DoB", -->
-<!-- "player first name", -->
-<!-- "player preferred foot", -->
-<!-- "player height", -->
-<!-- "player last name", -->
-<!-- "player nationality", -->
-<!-- "player place of birth", -->
-<!-- "player position", -->
-<!-- "player weight (at time of collecting data)", -->
-<!-- "away team name", -->
-<!-- "away team id", -->
-<!-- "home team name", -->
-<!-- "home team id") -->
-<!-- )) -->
+Focusing on the similarities across all model types:  
+1. Importance of past injuries  
+2. Importance of age  
+3. The impact of amount played recently, measured by many variables
+4. And the differences between positions  
 
-<!-- ``` -->
+These results are aligned with the results of visual expoloration.  
 
-<!-- ## Citations -->
+Random Forest and XGBoost does not allow for an easy interpretation of the direction of the relationship between injuries and a variable, however GLMNet coefficients can be considered for some insight:  
 
-<!-- <span style="color:red">##TODO: list resources</span>  -->
+```{r, out.width = '85%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Coefficent values for GLMNet models.jpeg")
+```
+<span style="color:red">##TODO</span>
 
-<!-- ## Sessioninfo -->
+### Considerations regarding external validity
 
-<!-- ```{r} -->
-<!-- sessionInfo() -->
-<!-- ``` -->
+Even if model predictions can not be considered accurate enough to be direct inputs to decision making on player resting, the relationships uncovered between different factors and injury risk is an important insight on its own.  
 
-## References
+It needs to be considered however if the results can be seen as good generalizations. There are two important aspects that should be weighted: whether the results contain any bias not modeled in the data, and whether the results would project well into space not covered by the data.  
+
+#### Model Bias
+Model bias arise when predictions are skewed by certain factors not transparently to model owners.  
+Usually, certain dormant variables (not measured) will have a casual relationship with the target being analyzed. As the real causes are not measured, proxies are being applied, which tend to show high correlation with the underlying.  
+
+If the desired variables are not available, caution is needed to ensure that the model is not polluted by unintended (and untrue) consequences.  
+
+For the injury prediction problem, two aspects will be reviewed: differences of times (years), and differences among teams.
+
+<span style="color:red">##TODO</span>
+
+#### Data-external factors
+It should be remembered that data is for the Premier League, seasons between 2010 and 2017.  
+Each major soccer league has its own playing styles and player compositions at any given time. Some play at a more uptempo pace, with more physicality. In others the focus is rather on finesse. Players can be very different as well - while the Premier League, being among the richest and most historious leagues, have players from all over the world, it is still majorly an English league. This is true for its players and personel as well.  
+
+Another aspect is weather. British weather is famous for not being friendly, but compared to more sunny, humid or warm locations the injury risk might be different as well.  
+
+This factors are just a question of data, and can be controlled for.  
+
+A harder aspect to measure is each player's individual physical (and psychical) condition. While their is more and more possibility to gather data on these aspects, it is unlikely that it will be made accessible to the public any time soon.
+
+
+\pagebreak
+
+# Considerations for future work
+<span style="color:red">##TODO</span>
+
+## A time window concept for injuries
+<span style="color:red">##TODO</span>
+
+\pagebreak
+
+# Appendix {.tabset}  
+## Contact details
+The author of this paper can be contacted directly via *t.koncz@gmail.com*.  
+
+## Project organization
+
+This project is breaken into separte, runable parts, which are not included in this markdown file.
+The main parts are:  
+1. Raw Data  
+2. Runable R scripts, storing the steps of the analysis  
+3. Functions  
+4. Models  
+5. Notebooks  
+6. Figures  
+7. Data  
+
+Further publicly disclosable details, and specific code is available on the [github repository of this project](https://github.com/tomiaJO/pl_injuries).
+
+## List of variables in raw data
+
+```{r}
+kable(data.frame(
+"Variable" = c("Date",
+"balance",
+"ft_a",
+"ft_h",
+"Attendance",
+"Game week",
+"Kick-off",
+"Venue",
+"home",
+"ht_a",
+"ht_h",
+"injured",
+"mid",
+"minutes",
+"pid",
+"starter",
+"injury_length",
+"injury_type",
+"injury_minutes_played",
+"days_till_injury",
+"pl/all_minutes/games_n/season",
+"Country of birth",
+"Date of birth",
+"First name",
+"Foot",
+"Height",
+"Last name",
+"Nationality",
+"Place of birth",
+"Position",
+"Weight",
+"away_team",
+"away_tid",
+"home_team",
+"home_tid"),
+"Description" = c("date of the game (YYYY-MM-DD)",
+"absolute full time goal difference=|ft_a - ft_h|",
+"full time away team goals",
+"full time home team goals",
+"number of fans at the game",
+"game week of the season",
+"kickoff time (GMT)",
+"Location of the stadium",
+"whether player lines up or the home side or not",
+"half time away team goals",
+"half time home team goals",
+"whether player was reported injured after the match, (before playing any other match) or not",
+"unique match id",
+"minutes played by the player on the match (stoppage time is discarded, so cannot be more than 90)",
+"unique player id",
+"whether player started the match or not",
+"if player was reported after the game, how many days did the injury reportedly last",
+"what type of injury was reported",
+"equals the minutes variable in case of injured = 1, otherwise 0",
+"how many days between the date of the match and start of reported injury",
+"how many games/minutes of premier league/any other football played by player in the n/days before the match (or in the season, total)",
+"player country of birth",
+"player DoB",
+"player first name",
+"player preferred foot",
+"player height",
+"player last name",
+"player nationality",
+"player place of birth",
+"player position",
+"player weight (at time of collecting data)",
+"away team name",
+"away team id",
+"home team name",
+"home team id")
+))
+
+```
+
+
+## Sessioninfo
+
+```{r}
+sessionInfo()
+```
+
+## References  
