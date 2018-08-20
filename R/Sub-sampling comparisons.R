@@ -22,8 +22,7 @@ model_list <- list("No Sampling"    = model_no,
 test_eval <- f_model_comparison(models = model_list, df_test = data_test)
 
 ## AUC
-data_subsampling_auc <- test_eval$auc %>%
-                          arrange(-AUC)
+data_subsampling_auc <- test_eval$auc
 
 saveRDS(object = data_subsampling_auc, file = paste(path_Data, "data_subsampling_auc.RDS", sep = "/"))
 
@@ -114,7 +113,7 @@ variable_importance <- f_variable_importance(model_list)
 
 p_vi <- variable_importance %>%
           tidyr::spread(key = "Model", value = "Importance") %>%
-          mutate(Variable = reorder(Variable, `Down-sampling`)) %>%
+          mutate(Variable = reorder(Variable, `SMOTE`)) %>%
           tidyr::gather(key = "Sampling", value = "Importance", -Variable) %>%
           group_by(Variable) %>%
           mutate(`Min. Importance` = max(Importance)) %>%

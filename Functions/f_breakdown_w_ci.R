@@ -11,5 +11,7 @@ f_breakdown_w_ci <- function(df, s_title = NULL, s_subtitle = NULL, s_caption = 
          x = s_x, 
          title = s_title, 
          subtitle = s_subtitle,
-         caption = s_caption)
+         caption = s_caption) +
+    technical_theme() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }

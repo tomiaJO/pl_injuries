@@ -35,7 +35,7 @@ f_roc_create <- function(pp, truth, plot = TRUE) {
         geom_line(aes(color = Model), size = 1.25) +
         geom_abline(intercept = 0, slope = 1,  linetype = "dotted", col = "black") +
         labs(title = "ROC curve",
-             x     = "Specificy (TNR)",
+             x     = "1 - Specificity (FPR)",
              y     = "Sensitivity (TPR)") +
         theme_minimal()
   

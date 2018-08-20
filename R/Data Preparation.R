@@ -5,7 +5,7 @@ source("GlobalStartup.R")
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Load data
 injuries          <- readRDS(file = paste(path_Data, "injuries.RDS", sep = "/"))
-country_to_region <- fread(paste(path_Data, "country_to_region.csv", sep = "/"))
+country_to_region <- data.table::fread(paste(path_Data, "country_to_region.csv", sep = "/"))
 
 
 injuries %>% count(Year)
@@ -57,8 +57,8 @@ injuries <- injuries %>%
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ADD Team & Opponent:
 injuries <- injuries %>% 
-              mutate(Team     = ifelse(home == 1, home_team, away_team)) %>%
-              mutate(Opponent = ifelse(home == 0, home_team, away_team))
+              mutate(Team     = ifelse(home == "Home", home_team, away_team)) %>%
+              mutate(Opponent = ifelse(home == "Away", home_team, away_team))
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## ADD non-PL variables
@@ -212,7 +212,7 @@ f_save_plots(save_plots = save_plots,
              p = p_minutes_played, 
              n = "7", 
              title = "Injuries vs Minutes Played", 
-             w = 6, 
+             w = 5, 
              h = 4, 
              save_all = FALSE)
 
@@ -272,7 +272,7 @@ p_hamstring_vs_age <- injuries %>%
                         f_plot_ir(s_x     = "`Age (Years)`", 
                                   s_title = "Injuries vs Age")
 
-f_save_plots(save_plots, p_hamstring_vs_age, "8", "Injuries vs Age", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_age, "8", "Injuries vs Age", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Weight
@@ -283,7 +283,7 @@ p_hamstring_vs_weight <- injuries %>%
                           f_plot_ir(s_x     = "`Weight (kg)`", 
                                     s_title = "Injuries vs Weight")
 
-f_save_plots(save_plots, p_hamstring_vs_weight, "9", "Injuries vs Weight", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_weight, "9", "Injuries vs Weight", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Height
@@ -294,7 +294,7 @@ p_hamstring_vs_height <- injuries %>%
                           f_plot_ir(s_x     = "`Height (cm)`", 
                                     s_title = "Injuries vs Height")
 
-f_save_plots(save_plots, p_hamstring_vs_height, "10", "Injuries vs Height", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_height, "10", "Injuries vs Height", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By BMI
@@ -305,7 +305,7 @@ p_hamstring_vs_bmi <- injuries %>%
                         f_plot_ir(s_x     = "BMI", 
                                   s_title = "Injuries vs BMI")
 
-f_save_plots(save_plots, p_hamstring_vs_bmi, "11", "Injuries vs BMI", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_bmi, "11", "Injuries vs BMI", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Kick-off time
@@ -314,7 +314,7 @@ p_hamstring_vs_kickoff <- injuries %>%
                             f_plot_ir(s_x     = "`Kick-off`", 
                                       s_title = "Injuries vs Kick-off Time")
 
-f_save_plots(save_plots, p_hamstring_vs_kickoff, "12", "Injuries vs Kick-off Time", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_kickoff, "12", "Injuries vs Kick-off Time", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Year
@@ -322,7 +322,7 @@ p_hamstring_vs_year <- injuries %>%
                           f_plot_ir(s_x     = "Year", 
                                     s_title = "Injuries vs Year")
 
-f_save_plots(save_plots, p_hamstring_vs_year, "13", "Injuries vs Year", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_year, "13", "Injuries vs Year", 5, 4)
                           
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Month
@@ -330,7 +330,7 @@ p_hamstring_vs_month <- injuries %>%
                           f_plot_ir(s_x     = "Month",
                                     s_title = "Injuries vs Month")
 
-f_save_plots(save_plots, p_hamstring_vs_month, "14", "Injuries vs Month", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_month, "14", "Injuries vs Month", 5, 4)
 
 ## TODO: Break-out Month by Year
 
@@ -340,7 +340,7 @@ p_hamstring_vs_weekday <- injuries %>%
                             f_plot_ir(s_x     = "Weekday", 
                                       s_title = "Injuries vs Weekday")
 
-f_save_plots(save_plots, p_hamstring_vs_weekday, "15", "Injuries vs Weekday", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_weekday, "15", "Injuries vs Weekday", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Venue
@@ -355,7 +355,7 @@ p_hamstring_vs_venue <- injuries %>%
                                     s_title    = "Injuries vs Venue",
                                     s_subtitle = "Split by Home/Away")
 
-f_save_plots(save_plots, p_hamstring_vs_venue, "16", "Injuries vs Venue", 4.5, 6)
+f_save_plots(save_plots, p_hamstring_vs_venue, "16", "Injuries vs Venue", 6, 7)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By nationality (grouped)
@@ -363,7 +363,7 @@ p_hamstring_vs_nationality <- injuries %>%
                                 f_plot_ir(s_x = "`Region - Nationality`",
                                           s_title = "Injuries vs Nationality (Regionalized)")
 
-f_save_plots(save_plots, p_hamstring_vs_nationality, "17", "Injuries vs Nationality (Regionalized)", 6, 4)
+f_save_plots(save_plots, p_hamstring_vs_nationality, "17", "Injuries vs Nationality (Regionalized)", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By country of birth (grouped)
@@ -371,7 +371,7 @@ p_hamstring_vs_birth_country <- injuries %>%
                                   f_plot_ir(s_x = "`Region - Birth`",
                                             s_title = "Injuries vs Birth Country (Regionalized)")
 
-f_save_plots(save_plots, p_hamstring_vs_birth_country, "18", "Injuries vs Birth Country (Regionalized)", 6, 4)
+f_save_plots(save_plots, p_hamstring_vs_birth_country, "18", "Injuries vs Birth Country (Regionalized)", 5, 4)
 
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -381,7 +381,7 @@ p_hamstring_vs_team <- injuries %>%
                                   s_title = "Injury rate vs Team",
                                   s_facet = "home")
 
-f_save_plots(save_plots, p_hamstring_vs_team, "19", "Injuries vs Team", 4.5, 6)
+f_save_plots(save_plots, p_hamstring_vs_team, "19", "Injuries vs Team", 6, 7)
 
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -391,7 +391,7 @@ p_hamstring_vs_opponent <- injuries %>%
                                         s_title = "Injuries vs Opponent",
                                         s_facet = "home")
 
-f_save_plots(save_plots, p_hamstring_vs_opponent, "20", "Injuries vs Opponent", 4.5, 6)
+f_save_plots(save_plots, p_hamstring_vs_opponent, "20", "Injuries vs Opponent", 6, 7)
 
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -407,7 +407,7 @@ p_hamstring_vs_pl_games_season <- injuries %>%
                                     f_plot_ir(s_x     = "pl_games_season", 
                                               s_title = "Injuries vs PL Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_pl_games_season, "21", "Injuries vs PL Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_pl_games_season, "21", "Injuries vs PL Games in Season", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By All Games in Season
@@ -418,7 +418,7 @@ p_hamstring_vs_all_games_season <- injuries %>%
                                     f_plot_ir(s_x     = "all_games_season", 
                                               s_title = "Injuries vs All Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_all_games_season, "22", "Injuries vs All Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_all_games_season, "22", "Injuries vs All Games in Season", 5, 4)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: By Non-PL Games in Season
@@ -429,7 +429,7 @@ p_hamstring_vs_nonpl_games_season <- injuries %>%
                                       f_plot_ir(s_x     = "non_pl_games_season", 
                                                 s_title = "Injuries vs Non-PL Games in Season")
 
-f_save_plots(save_plots, p_hamstring_vs_nonpl_games_season, "23", "Injuries vs Non-PL Games in Season", 6, 4.5)
+f_save_plots(save_plots, p_hamstring_vs_nonpl_games_season, "23", "Injuries vs Non-PL Games in Season", 5, 4)
                                       
 
 

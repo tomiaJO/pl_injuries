@@ -42,9 +42,7 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
               f_breakdown_w_ci(s_x        = s_x, 
                                s_title    = s_title, 
                                s_subtitle = s_subtitle_ci,
-                               s_caption  = s_caption_ci) +
-              technical_theme() +
-              theme(axis.text.x = element_text(angle = 45, hjust = 1))
+                               s_caption  = s_caption_ci)
   
   if(!is.null(s_facet)) {
     p_ci <- p_ci +
@@ -80,13 +78,13 @@ f_plot_ir <- function(df, s_x, s_facet = NULL, s_title = NULL, s_subtitle = NULL
   p_story <- p_story + theme(plot.title = element_blank())
   p_ci    <- p_ci    + theme(plot.title = element_blank())
   p_il    <- p_il    + theme(plot.title = element_blank())
-  g <- arrangeGrob(p_story, 
-                   p_ci,
+  g <- arrangeGrob(p_ci,
                    p_il,
-                   ncol = 3,
+                   ncol = 2,
                    # layout_matrix = rbind(rbind(c(1,  1, 1, 2, 2, 2),
                    #                             c(NA, 3, 3, 3, 3, NA))),
-                   top = grid::textGrob(s_title, gp = grid::gpar(fontsize = 18, lineheight = 1.25)))
+                   top = grid::textGrob(s_title, 
+                                        gp = grid::gpar(fontfamily = "Garamond", fontsize = 18, lineheight = 1.25)))
   ##
   
   r <- list("storyplot" = p_story,

@@ -7,13 +7,12 @@ output:
     number_sections: yes
     toc: yes
     toc_depth: 2
-  pdf_document:
-    toc: yes
-    toc_depth: '2'
+bibliography: references.bib
 ---
 
 ```{r setup, include = FALSE}
 library(knitr)
+library(kableExtra)
 library(tidyverse)
 library(caret)
 library(DMwR)
@@ -38,7 +37,7 @@ Data used for this exercise is a per game per player level collection of the Pre
 
 The target variable for prediction is "injured" - 1 if player was reported injured after the game, 0 otherwise. Descriptive data is also available on the type of the injury, and how long it reportedly last.  
 
-The list of Other variables can be found in the Appendix.  
+The list of Other variables can be found in the Appendix.
 
 <span style="color:red">add sentence re. source</span> 
 
@@ -106,7 +105,7 @@ Goalkeepers were removed from the population, as their behaviour on the court is
 Records with missing position were also removed - upon structural checks, the quality of these rows were not deemed truthworsty for further investigation.  
 
 
-#### Playing time  
+### Playing time  
 ```{r, out.width = '50%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/5. Injury rates vs PL season minutes.jpeg")
 ``` 
@@ -137,10 +136,9 @@ Below is a comprehensive list of all variables created during the data preparati
 
 In this section, injury rates (number of injuries / number of records) will be broken down by categories of different variables.  
 
-For each variable, there are 3 charts (from left to right):  
-1. Average injury rates (red line) and game counts (blue bar) in a given category  
-2. 95% confidence interval of injury rates in a given category  
-3. Average injury length in a given category, breaken out by injury type  
+For each variable, there are 2 charts (from left to right):   
+1. Error bar encoding the 95% confidence interval of injury rates in a given category. Point at the mean, point size encodes number of games in the category.  
+2. Average injury length in a given category, breaken out by injury type  
 
 Commentary will be only provided on the variables deemed most important by the machine learning models applied.
 
@@ -233,106 +231,120 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs 
 
 \pagebreak
 
-<!-- # Modeling   -->
-<!-- ## Methodology {.tabset}   -->
-<!-- ### Separation of data sets   -->
+# Modeling
+## Methodology {.tabset}
+### Avoiding overfitting  
 
-<!-- Year 2017 is set aside for final performance evaluation:   -->
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- training_set    <- original_sample %>%  -->
-<!--                      filter(Year < 2017) -->
+To avoid overfitting, a standard approach of separating training / validation / performance sets was used.  
 
-<!-- performance_set <- original_sample %>%  -->
-<!--                      filter(Year == 2017) -->
-<!-- ``` -->
+Year 2017 is set aside for final performance evaluation:
+```{r, eval = FALSE, echo = TRUE}
+training_set    <- original_sample %>%
+                     filter(Year < 2017)
 
-
-<!-- Data from other years is split into a training and test set, based on a standard 70% - 30% split:   -->
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- training_ratio <- 0.70 -->
-
-<!-- train_indices <- createDataPartition(y = training_set[["injured"]], -->
-<!--                                      times = 1, -->
-<!--                                      p = training_ratio, -->
-<!--                                      list = FALSE) -->
-
-<!-- data_train <- training_set[train_indices,  ] %>% as.data.frame() -->
-<!-- data_test  <- training_set[-train_indices, ] %>% as.data.frame() -->
-<!-- ``` -->
+performance_set <- original_sample %>%
+                     filter(Year == 2017)
+```
 
 
-<!-- ### The problem of class imbalance    -->
+Data from other years is split into a training and test set, based on a 70% - 30% split:
+```{r, eval = FALSE, echo = TRUE}
+training_ratio <- 0.70
 
-<!-- Based on the previous definition of "injured", the cleaned data set consist of only 1% of positive cases.   -->
-<!-- This makes it highly imbalanced, something that can hurt model performance for classification tasks.  -->
+train_indices <- createDataPartition(y = training_set[["injured"]],
+                                     times = 1,
+                                     p = training_ratio,
+                                     list = FALSE)
 
-<!-- More precisely: the cost of missclassifying a case-of-interest (injured == YES) observation is higher than the cost of a reversed error. It's very important to know when a player is in risk of getting injured, as if the event occurs, he can be out for a long period of time, costing the team money and available resource to compete as well. On the other hand, if a player is in good shape, an extra rest day can only hurt so much.   -->
+data_train <- training_set[train_indices,  ] %>% as.data.frame()
+data_test  <- training_set[-train_indices, ] %>% as.data.frame()
+```
 
-<!-- In machine learning application there are multiple ways of addressing this issue. Main ones include, but are not limited to:   -->
-<!-- 1. Sub-sampling -->
-<!-- 2. Cost sensitive learning - weighting observations -->
-<!-- 3. Learning methods, like one-class classifiers (e.g. autoencoders) -->
+*Note: cross-validation was used on the training set, for model tuning*  
 
-<!-- Let's review 1. in more detail, which was used for this analysis.   -->
+### The problem of class imbalance
 
-<!-- #### Sub-sampling techniques for learning from imbalanced data -->
+Based on the previous definition of "injured", the cleaned data set consist of only 1.02% of positive cases.
+This makes it highly imbalanced, something that can hurt model performance for classification tasks.  
 
-<!-- There are three possible ways to sub-sample data for better predictive performance: up-sampling, down-sampling, and methods mixing the two, like SMOTE. Each carryies their own benefits and disadvantages.   -->
+More precisely: *"doing classification when classes are highly imbalanced leads to underestimation of conditional probabilities of the minority class"* [@imbalanced4].
 
-<!-- 1. Down-sampling the majority class   -->
-<!-- In this case wer are removing observations from the majority class to make the data more balanced. Usually this method is best when the available data size is large.   -->
-<!-- It can reduce burden of computation effort and storage, however on the flip side it could potentially remove useful information.   -->
+Specifically looking at the injury prediction problem: the cost of missclassifying a case-of-interest (injured == YES) observation is higher than the cost of a reversed error. It's very important to know when a player is in risk of getting injured, as if the event occurs, he can be out for a long period of time, costing the team money and available resource to compete as well. On the other hand, if a player is in good shape, an extra rest day can only hurt so much.
 
-<!-- 2. Up-sampling the minority class   -->
-<!-- Oversampling repeats examples of the minority class, usually via bootstrapping.  -->
-<!-- There is no information loss that happens with down-sampling, however computation times can increase.   -->
-<!-- Also, by repeatation of the same observations, this method can lead to overfitting. -->
+In machine learning application there are multiple ways of addressing this issue [@imbalanced3]. Main ones include, but are not limited to:  
+1. Sub-sampling  
+2. Cost sensitive learning - weighting observations  
+3. Learning methods, like one-class classifiers (e.g. autoencoders)  
 
-<!-- 3. SMOTE: Synthetic Minority Over-sampling TEchnique   -->
-<!-- An alternative approach is "mixing" the above two techniques. Down-sampling has an obvious drawback in loss of information. Up-sampling also risks to identify more similar, but also more specific regions of the feature space, hence not being able to generalize well in certain cases.   -->
-<!-- SMOTE creates synthetic new examples from the minority class, rather than just repeating existing observations.   -->
-<!-- The method is actually inspired by an older image recognition technique, where the same pictures are getting slightly distorted (e.g. via rotation).   -->
-<!-- The idea behind SMOTE works well in theory - however, depending on the data it might introduce new problems. Such a problem could be "noisy" data - when cases of classes are not well separated, SMOTE can enlarge this overlap, as it does not take distribution into consideration when creating synthetic new examples. For similar reasons, SMOTE tends to not work well for high dimensional data.   -->
+Let's review 1. in more detail, which was used for this analysis.
+
+#### Sub-sampling techniques for learning from imbalanced data
+
+There are three possible ways to sub-sample data for better predictive performance: up-sampling, down-sampling, and methods mixing the two, like SMOTE. Each carryies their own benefits and disadvantages, as per [@imbalanced1].
+
+1. Down-sampling the majority class
+In this case wer are removing observations from the majority class to make the data more balanced. Usually this method is best when the available data size is large.
+It can reduce burden of computation effort and storage, however on the flip side it could potentially remove useful information.
+
+2. Up-sampling the minority class
+Oversampling repeats examples of the minority class, usually via bootstrapping.
+There is no information loss that happens with down-sampling, however computation times can increase.
+Also, by repeatation of the same observations, this method can lead to overfitting.
+
+3. SMOTE: Synthetic Minority Over-sampling TEchnique
+An alternative approach is "mixing" the above two techniques. Down-sampling has an obvious drawback in loss of information. Up-sampling also risks to identify more similar, but also more specific regions of the feature space, hence not being able to generalize well in certain cases.
+SMOTE [@smote] creates synthetic new examples from the minority class, rather than just repeating existing observations.
+The method is actually inspired by an older image recognition technique, where the same pictures are getting slightly distorted (e.g. via rotation).
+The idea behind SMOTE works well in theory - however, depending on the data it might introduce new problems. Such a problem could be "noisy" data - when cases of classes are not well separated, SMOTE can enlarge this overlap, as it does not take distribution into consideration when creating synthetic new examples. For similar reasons, SMOTE tends to not work well for high dimensional data.
 
 
-<!-- Another important aspect of sub-sampling is when to apply it in the modeling workflow.   -->
-<!-- If subsampling is done before fitting a model, it will introduce two problems: -->
-<!-- 1. For model tuning, the held-out sets in CV will also be sub-sampled. This can create unrealistic or overly optimistic performance measures.   -->
+Another important aspect of sub-sampling is when to apply it in the modeling workflow [@imbalanced2].
+If subsampling is done before fitting a model, it will introduce two problems:  
+1. For model tuning, the held-out sets in CV will also be sub-sampled. This can create unrealistic or overly optimistic performance measures.  
+2. Added uncertainity: we won't know for sure how results would look like with a different subsample. Similar effects arise as in the point above.  
 
-<!-- 2. Added uncertainity: we won't know for sure how results would look like with a different subsample. Similar effects arise as in the point above.   -->
 
-<!-- <span style="color:red">##TODO: reference resources properly</span>  -->
-<!-- - https://www.analyticsvidhya.com/blog/2017/03/imbalanced-classification-problem/   -->
-<!-- - https://topepo.github.io/caret/subsampling-for-class-imbalances.html   -->
-<!-- - http://www.ijcst.com/icaccbie11/sp1/krishnaveni.pdf   -->
-<!-- - https://www.jair.org/papers/paper953.html   -->
+#### A practical comparison of different sub-sampling methods
 
-<!-- #### A practical comparison of different sub-sampling methods  -->
+Below is a summary of different sub-sampling techniques applied to the injury prediction problem.  For this analysis, similar Random Forest models were tuned with the different sampling techniques.  
 
-<!-- Below is a summary of different sub-sampling techniques applied to the injury prediction problem. -->
-<!-- <span style="color:red">##TODO: Re-run with best method (XGBOOST so far)</span>  -->
+*Note: Technical details of the model fitting process are covered in a later section. For now, just note that the "caret" R library [@caret] was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document. Random Forests were fit with the "ranger" library [@ranger].*  
 
-<!-- ```{r, out.width = '65%', fig.align = 'center'} -->
-<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Comparison of sampling strategies.jpeg") -->
-<!-- ``` -->
+First, let's refer to the all-in-one metric of classification problems, area under the curve:  
+```{r}
+readRDS(file = "C:/Users/tkonc/Documents/pl_injuries/Data/data_subsampling_auc.RDS") %>%
+  kable(digits = 4,
+        align = NULL) %>%
+  kable_styling(full_width = F)
+```
 
-<!-- An interesting outcome is that AUC values of the ROC curve are not significantly different.   -->
-<!-- AUC however is just one metric to describe the models' performance. The real optimization problem is maximizing the time a player can spend on the soccer field. The costliest case is when an injury event is not detected - false negatives can create a lot more headache than false positives.   -->
+As seen above, AUC values are not creating a clear separation between different sampling techniques. SMOTE does somewhat better than others, but the differences are not significant.  
 
-<!-- Based on the LOGIT trial, down-sampling seems to work best. For further section, down-sampling is assumed if not noted otherwise, given it's better use of computation time as well. -->
+This calls for a more detailed inspection, starting with the ROC curves:  
+```{r, out.width = '65%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. ROC Curve of different sampling strategies.jpeg")
+```
 
-<!-- ```{r, out.width = '75%', fig.align = 'center'} -->
-<!-- include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. ROC Curve of different sampling strategies.jpeg") -->
-<!-- ``` -->
+ROC curves are also very similar. SMOTE may be somewhat better performing at low and high specificity rates, while others seem better in the middle. Now let's consider something: the real optimization problem is maximizing the time a player can spend on the soccer field. The costliest case is when an injury event is not detected - false negatives can create a lot more headache than false positives. Or so it seems at first - but the possible number of false positives is a lot higher than that of false negatives. This problem will be explored further in the cost-benefit analysis section.  
 
-<!-- ## Methods used {.tabset}  -->
+Neither sampling method is particularly strong, which projects the issues of using models for decision making of player resting.  
+This is not he only use-case of analytics however: ranking players by injury risk, or understanding the driving forces behind injury probabilities can also provide value to either coaches, or also to front-offices evaluating different players.  
 
-<!-- ### Overview -->
+The first aspect, how realistic the probabilities predicted are on average, will be reviewed here. The impact of different variables are covered later.
+```{r, out.width = '100%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. Calibrated probability plots.jpeg")
+```
 
-<!-- A total of 5 different methods were fit and tuned to select the best one for predicting injuries.   -->
-<!-- Below is a review of them one-by-one to understand the differences. -->
+Again, neither model does particularly well. SMOTE is strongest however in a key issue: on average, it separates cases with different risk levels much better than any other method. No sampling and up-sampling does not allow for any confident ranking, while down-sampling creates more biased estimates for higher risk instances.  
+  
+This fact, together with the theoretical advantages, and the computational effort aspect makes SMOTE the best choice for conducting further analysis.
 
-<!-- The "caret" R library was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document. -->
+## Methods used {.tabset}
+
+### Overview
+
+A total of 5 different methods were fit and tuned to select the best one for predicting injuries.
+Below is a review of them one-by-one to understand the differences.
 
 <!-- Each method was called with the same control function: -->
 <!-- ```{r, eval = FALSE, echo = TRUE} -->
@@ -567,3 +579,4 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs 
 <!-- sessionInfo() -->
 <!-- ``` -->
 
+## References
