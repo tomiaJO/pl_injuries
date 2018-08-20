@@ -308,9 +308,10 @@ If subsampling is done before fitting a model, it will introduce two problems:
 
 Below is a summary of different sub-sampling techniques applied to the injury prediction problem.  For this analysis, similar Random Forest models were tuned with the different sampling techniques.  
 
-*Note: Technical details of the model fitting process are covered in a later section. For now, just note that the "caret" R library [@caret] was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document. Random Forests were fit with the "ranger" library [@ranger].*  
+*Note: Technical details of the model fitting process are covered in a later section. For now, just note that the "caret" R library [@caret] was used to create all models. Caret allows for a nice and consistent user interfence, hence it makes it easier to comprehend code referenced in this document. Random Forests were fit with the "ranger" library [@ranger], while SMOTE sampling uses the "DMwR" library [@DMwR].*  
 
 First, let's refer to the all-in-one metric of classification problems, area under the curve:  
+
 ```{r}
 readRDS(file = "C:/Users/tkonc/Documents/pl_injuries/Data/data_subsampling_auc.RDS") %>%
   kable(digits = 4,
@@ -321,6 +322,7 @@ readRDS(file = "C:/Users/tkonc/Documents/pl_injuries/Data/data_subsampling_auc.R
 As seen above, AUC values are not creating a clear separation between different sampling techniques. SMOTE does somewhat better than others, but the differences are not significant.  
 
 This calls for a more detailed inspection, starting with the ROC curves:  
+
 ```{r, out.width = '65%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/999. ROC Curve of different sampling strategies.jpeg")
 ```
@@ -339,105 +341,124 @@ Again, neither model does particularly well. SMOTE is strongest however in a key
   
 This fact, together with the theoretical advantages, and the computational effort aspect makes SMOTE the best choice for conducting further analysis.
 
-## Methods used {.tabset}
+## Methods used {.tabset}  
 
-### Overview
+### Overview  
 
-A total of 5 different methods were fit and tuned to select the best one for predicting injuries.
-Below is a review of them one-by-one to understand the differences.
+Each method was called with the same caret control function:  
+```{r, eval = FALSE, echo = TRUE}
+ctrl <- trainControl(method = "cv", 
+                     classProbs = TRUE, 
+                     summaryFunction = twoClassSummary, 
+                     sampling = "SMOTE")
+```
 
-<!-- Each method was called with the same control function: -->
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- trainControl(method = "repeatedcv",  -->
-<!--              repeats = 5, -->
-<!--              classProbs = TRUE, -->
-<!--              summaryFunction = twoClassSummary, -->
-<!--              sampling = "down") -->
-<!-- ``` -->
+Models were tuned via 10-fold cross-validation. Other parameters instruct caret that this is a binary classification problem, and that SMOTE-sampling should be used during the fitting process.  
 
-<!-- Models were tuned via 5-fold cross-validation. Other parameters instruct caret that this is a binary classification problem, and that down-sampling should be used during the fitting process.   -->
+Seeding was applied before each fitting call, to facilitate reproducibility of the results.  
+```{r, eval = FALSE, echo = TRUE}
+set.seed(93)
+```
 
-<!-- Seeding was applied before each fitting call, to facilitate reproducibility of the results.  -->
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- set.seed(93) -->
-<!-- ``` -->
+A total of 5 different methods were fit and tuned to select the best one for predicting injuries.  
+Below is a review of them one-by-one to understand the differences.  
 
+### Logit and Probit (GLM)
 
-<!-- <span style="color:red">##TODO: write a bit of theoretical background for each to explain why they were used</span>  -->
+Logit and Probit are both linear classification methods. They are different in the function which maps the result to the 0 - 1 space (so that it can be used as a probability), which also defines interpretation of coefficients.  
 
-<!-- ### Simple Logit (GLM)   -->
+These methods work best when it is important that model details could be understood - as a down-side however, they are not able to capture non-linear effects and complex relationships (without further feature engineering), and the lack of regularization could drive them to overfit if the data is high-dimensional.  
 
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- train(injured ~ ., -->
-<!--       data      = data_train, -->
-<!--       method    = "glm", -->
-<!--       family    = binomial(link = "logit"), -->
-<!--       metric    = "ROC", -->
-<!--       trControl = ctrl) -->
-<!-- ``` -->
+Logit code:  
+```{r, eval = FALSE, echo = TRUE}
+train(injured ~ .,
+      data      = data_train,
+      method    = "glm",
+      family    = binomial(link = "logit"),
+      metric    = "ROC",
+      trControl = ctrl)
+```
+  
+  
+Probit code:
+```{r, eval = FALSE, echo = TRUE}
+train(injured ~ .,
+      data      = data_train,
+      method    = "glm",
+      family    = binomial(link = "probit"),
+      metric    = "ROC",
+      trControl = ctrl)
+```
 
-<!-- ### Simple Probit (GLM) -->
+### Reguralized Logit (GLMNet)
 
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- train(injured ~ ., -->
-<!--       data      = data_train, -->
-<!--       method    = "glm", -->
-<!--       family    = binomial(link = "probit"), -->
-<!--       metric    = "ROC", -->
-<!--       trControl = ctrl) -->
-<!-- ``` -->
+GLMNet [@glmnet] uses an elastic-net penalty which balances the use of lasso and ridge regularization.  
+The regularization shrinks the coefficient of unimportant variables towards zero, hence it can be used as a variable selector as well. The tuned regularization ensures that the model is not overfit to training data, but GLMNet still does not automatically address the non-linear components.
 
-<!-- ### Reguralized Logit (GLMNet) -->
+GLMNet code:
+```{r, eval = FALSE, echo = TRUE}
+tg_glmnet <- expand.grid(alpha  = c(1:10 / 100),
+                         lambda = c(1:10 / 100))
 
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- train(injured ~ ., -->
-<!--       data       = data_train, -->
-<!--       method     = "glmnet", -->
-<!--       family     = "binomial", -->
-<!--       metric     = "ROC", -->
-<!--       trControl  = ctrl, -->
-<!--       preProcess = c("center", "scale"), -->
-<!--       tuneLength = 10) -->
-<!-- ``` -->
+train(injured ~ .,
+      data       = data_train,
+      method     = "glmnet",
+      family     = "binomial",
+      metric     = "ROC",
+      trControl  = ctrl,
+      preProcess = c("center", "scale"),
+      tuneGrid   = tg_glmnet)
+```
 
-<!-- The tuneLength parameter instructs caret to complete a 10 x 10 grid search of alpha and lambda parameters.     -->
-<!-- Standardization is applied, as necessary for regularization.   -->
+The tuneGrid parameter instructs caret to complete a grid search of provided alpha and lambda parameters.
+Standardization is applied, as necessary for regularization.
 
-<!-- ### Random Forest (Ranger)   -->
+### Random Forest (Ranger)
 
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- tg_rf <- expand.grid(.mtry = c(2:7), -->
-<!--                      .splitrule = "gini", -->
-<!--                      .min.node.size = c(10, 25, 100)) -->
+Random Forest is a tree-based method which requires minimal tuning in exchange for strong performance characteristics.
+The trees ensure that non-linear patterns are also taken into account for prediction. Random Forest ensambles many decision trees, each built on a bootstrapped sample of the training data. At each step, only a random selection of features is used for decision on best split, hence it reduces the likelihood of relying too much on a small set of variables. This makes random forests very reluctant to overfit.  
 
-<!-- train(injured ~ ., -->
-<!--       method     = "ranger", -->
-<!--       metric     = "ROC", -->
-<!--       trControl  = ctrl, -->
-<!--       tuneGrid   = tg_rf, -->
-<!--       num.trees  = 500, -->
-<!--       importance = "impurity") -->
-<!-- ``` -->
+Random Forest code:  
+```{r, eval = FALSE, echo = TRUE}
+tg_rf <- expand.grid(.mtry          = c(2:12),
+                     .splitrule     = "gini",
+                     .min.node.size = c(1:8 * 25))
 
+train(injured ~ .,
+      data       = data_train,
+      method     = "ranger",
+      metric     = "ROC",
+      trControl  = ctrl,
+      tuneGrid   = tg_rf,
+      num.trees  = 1000,
+      importance = "impurity")
+```
 
-<!-- ### Gradient Boosting (XGBoost) -->
+A 1000 trees were fit to make predictions. Tuning parameters included the number of random features selected at each split, the splitting rule, as well as the minimum node size in each tree.  
 
-<!-- ```{r, eval = FALSE, echo = TRUE} -->
-<!-- tg_xgb <- expand.grid(nrounds = 250, -->
-<!--                       max_depth = c(2:5), -->
-<!--                       eta = c(0.01, 0.05), -->
-<!--                       gamma = 0, -->
-<!--                       colsample_bytree = c(.25, .5, .75), -->
-<!--                       min_child_weight = 1, -->
-<!--                       subsample = c(.25, .5, .75)) -->
+### Gradient Boosting (XGBoost)
 
-<!-- train(injured ~ ., -->
-<!--       method = "xgbTree", -->
-<!--       metric = "ROC", -->
-<!--       data = data_train, -->
-<!--       trControl = ctrl, -->
-<!--       tuneGrid = tg_xgb) -->
-<!-- ``` -->
+XGBoost [@xgboost] is a widely-used implementation of extreme gradient boosting. The workings and parameters of XGBoost is well covered [here] (https://github.com/dmlc/xgboost/blob/master/R-package/vignettes/xgboostPresentation.Rmd).  
+
+While gradient boosting tends to perform better than random forests on many problems, they are complicated to fit well, due to the large number of tuning parameters. Training XGBoost, while reasonabily fast, is also significantly slower than training Random Forests (with *ranger*), due to the same reason.  
+
+XGBoost code:
+```{r, eval = FALSE, echo = TRUE}
+tg_xgb <- expand.grid(nrounds          = c(250, 500),
+                      max_depth        = c(5, 10, 15),
+                      eta              = c(0.1, 0.25),
+                      gamma            = c(0.1, 0.25),
+                      colsample_bytree = c(2:6 / 10),
+                      min_child_weight = c(1:4),
+                      subsample        = c(5:9 / 10))
+
+train(injured ~ .,
+      method = "xgbTree",
+      metric = "ROC",
+      data = data_train,
+      trControl = ctrl,
+      tuneGrid = tg_xgb)
+```
 
 
 <!-- ## Results {.tabset} -->
