@@ -8,7 +8,6 @@ injuries          <- readRDS(file = paste(path_Data, "injuries.RDS", sep = "/"))
 country_to_region <- data.table::fread(paste(path_Data, "country_to_region.csv", sep = "/"))
 
 
-injuries %>% count(Year)
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## FIX formatting: kick-off
 injuries <- injuries %>%
@@ -227,12 +226,28 @@ g <- arrangeGrob(p1,
                                       gp = grid::gpar(fontfamily = "Garamond", fontsize = 18, lineheight = 1.25),
                                       hjust = .9))
 
-ggsave(filename = paste(path_Figures, "xxx. Lost player days due to lower body strains.jpeg", sep = "/"),
-       plot = g,
-       device = "jpeg",
-       width = 8,
-       height = 4,
-       dpi = 500)
+f_conditional_ggsave(save = T,
+                     filepath = paste(path_Figures, "xxx. Lost player days due to lower body strains.jpeg", sep = "/"),
+                     p = g,
+                     w = 8,
+                     h = 4)
+##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+## VISUALIZE: Injury history
+p_ihist <- injuries  %>%
+  mutate(`Injury before` = ifelse(`Injured last 90days` == 1, "Last 90 days",
+                                   ifelse(`Injured last year` == 1, "Last year",
+                                          ifelse(`Injured Career` == 1, "Career", "Never")))) %>%
+  mutate(`Injury before` = factor(`Injury before`, levels = c("Never", "Career", "Last year", "Last 90 days"))) %>%
+  f_plot_ir(s_x = "`Injury before`", 
+            s_title = "Injuries vs injury history")
+
+f_save_plots(save_plots = T, 
+             p = p_ihist, 
+             n = "1000", 
+             title = "Injuries vs injury history", 
+             w = 5, 
+             h = 4, 
+             save_all = FALSE)
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## VISUALIZE: Injury vs Minutes played in a given game

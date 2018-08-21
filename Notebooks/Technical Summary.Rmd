@@ -30,14 +30,14 @@ opts_chunk$set(echo    = FALSE)
 
 The aim of this work is to identify direct links between injury risk of professional soccer players and certain relatable factors.  
 
-Specifically, the injuries in focus are muscle strains happening in the lower body. To consider the seriousness of this problem, consider the below chart:  
+Specifically, the injuries in focus are muscle strains happening in the lower body. To grasp the seriousness of this problem, consider the below charts:  
 ```{r, out.width = '75%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Lost player days due to lower body strains.jpeg")
 ```
 
 A large number of matches are missed by players due to injuries - a costly experience for teams, and an unpleasant one for both players and soccer fans.  
 
-A large collection of player level information was used to explore the existing relationship of many variables and injury risk, using visual and statistical modeling methods.  
+A wide collection of player level information was used to explore the existing relationship of many variables and injury risk, using visual and statistical modeling methods.  
 
 While it was not possible to establish an accurate prediction system for individual injuries, the analysis demonstrates that there are other valuable insights that could be gathered. Among the most important ones are the impact of past injuries on future risk.  
 
@@ -50,7 +50,7 @@ The last section contains suggestions for future work, among them an interesting
 # Scope
 
 Data used for this exercise is a per game per player level collection of the Premier League matches between 2003 and 2018.  
-This data is publicly available, however not in organized format, hence it cannot be shared without explicit permission.  
+This data is publicly available, however not in an organized format, hence it cannot be shared without explicit permission of data owners.  
 
 The target variable for prediction is "injured" - 1 if player was reported injured after the game, 0 otherwise. Descriptive data is also available on the type of the injury, and how long it reportedly last.  
 
@@ -67,7 +67,7 @@ As the original dataset was in raw format (as collected from the internet), cert
 ### Years  
 
 Years before 2010 were removed as their injury data was non-complete.  
-Year 2018 was removed as data was incomplete - the Premier League season was still in progress at the time of data collection.
+Year 2018 was also removed - the Premier League season was still in progress at the time of data collection.
 
 ### Missing data  
 
@@ -250,7 +250,11 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/23g. Injuries vs 
 
 ### By injury history
 
-<span style="color:red">##TODO: add charts</span>
+Injury history shows clear signs in defining future injury risk. Players who had been injured before not just tend to be more likely to get re-injured, but recent injuries also weight more on a player. Players with more recent injuries, if injured again, tend to miss more time as well.  
+
+```{r, out.width = '75%', fig.align = 'center'}
+include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/1000g. Injuries vs injury history.jpeg")
+```
 
 \pagebreak
 
@@ -539,7 +543,7 @@ Unfortunately, no model has a very strong performance. This indicates that class
 
 Even if predicted probabilities are not accurate enough on their own, they do have value, if their ability to rank players from low to high risk is good, at least on the average.  
 
-```{r, out.width = '85%', fig.align = 'center'}
+```{r, out.width = '100%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Calibrated probability plots.jpeg")
 ```
 
@@ -562,11 +566,12 @@ include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Cost-benefit
 
 Unfortunately, it seems that even in the best case, the benefits are neglible. And if a slightly different threshold is chosen, the modeled approach is worst-off than the historical benchmark.  
 
-To understand why, consider the confusion matrix visualized at a reasonable threshold rate:
+To understand why, consider the confusion matrix visualized at a reasonable threshold rate:  
 ```{r, results = 'asis'}
 readRDS(file = "C:/Users/tkonc/Documents/pl_injuries/Data/data_cm.RDS") %>% ftable %>% pander()
 ```
-
+  
+  
 The true positive rate, the rate of identified injuries is 14.85%. On the other hand, false positive classifications are happening at a below 4% rate. At first this seems like a good alternative to the no-model case.  
 
 The problem is that false positives are not costless. Positive classifications mean that the player needs to miss the upcoming match (in the analysis measured as 3.5 days missed). The average missed time for an injury is approximately 37 days. With these costs, the model would need to identify around one tenth as many true positives as false positives to be on par with the benchmark.  
@@ -594,7 +599,8 @@ Random Forest and XGBoost does not allow for an easy interpretation of the direc
 ```{r, out.width = '85%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/9999. Coefficent values for GLMNet models.jpeg")
 ```
-<span style="color:red">##TODO</span>
+  
+The coefficients are in line with what the visual analysis already confirmed, e.g. the importance of injuries before, or the reverse impact of non-PL games played.
 
 ### Considerations regarding external validity
 
@@ -643,19 +649,19 @@ The authors present a time window technique: rather than trying to predict if a 
 
 Theoretically, the same idea can be applied to soccer injuries. While this project does not provide a deep investigation into the workability of the concept, a brief look is provided into what it could offer.  
 
-```{r, out.width = '85%', fig.align = 'center'}
+```{r, out.width = '65%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/xxx. Injury rates by Time Windows.jpeg")
 ```
 
 In total 5 Random Forest models were trained (similarly as before). The comparison of their ROC curves can be seen below:  
-```{r, out.width = '85%', fig.align = 'center'}
+```{r, out.width = '65%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/99999. ROC curves for different prediction time windows.jpeg")
 ```
 
 From the prediction perspective, it looks like that an ideal time window is somewhere in the 14 - 21 days range. It should be noted however, that even with an improvement in the TPR / FPR trade-off, a cost-efficient method could not be implemented, as the ratio of false positives is still too high.  
 
 Different time windows can be calibrated similarly - while none is perfect, each one is reasonable in terms of risk ranking:  
-```{r, out.width = '85%', fig.align = 'center'}
+```{r, out.width = '100%', fig.align = 'center'}
 include_graphics("C:/Users/tkonc/Documents/pl_injuries/Figures/99999. Calibrated probability plots for different time windows.jpeg")
 ```
 

@@ -76,7 +76,7 @@ p_injury_types <- injuries %>%
                          x        = "Injury Type",
                          y        = "Number of injuries",
                          caption  = "Note: Injuries that happened less than 25x are group as 'Other'") +
-                    story_theme() + theme(plot.title = element_text(size = 10.5))
+                    story_theme() + theme(plot.title = element_text(size = 12))
 
 f_conditional_ggsave(save = save_plots, 
                      p = p_injury_types, 
@@ -102,7 +102,7 @@ p_injury_lenghts <- injuries %>%
                            y        = "Length of injuries",
                            caption  = "Note: Injuries that happened less than 25x are group as 'Other'") +
                       technical_theme() + 
-                      theme(plot.title = element_text(size = 10.5),
+                      theme(plot.title = element_text(size = 12),
                             axis.text.y  = element_blank())
 
 f_conditional_ggsave(save = save_plots, 
