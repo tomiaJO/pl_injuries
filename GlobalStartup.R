@@ -23,7 +23,7 @@ source("GlobalVariables.R")
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Set saving of figures
-save_plots <- T
+save_plots <- F
 
 ##### ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ## Import functions & themes

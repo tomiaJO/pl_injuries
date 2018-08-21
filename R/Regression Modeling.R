@@ -214,12 +214,12 @@ Sys.time()
 
 
 ## GLMNET, lasso & ridge
-# set.seed(93)
-# m_glmnet_smote <- f_fit_glmnet()
-# 
-# saveRDS(object = m_glmnet_smote, file = paste(path_Models, "m_glmnet_smote.RDS", sep = "/"))
-# rm(m_glmnet_smote)
-# Sys.time()
+set.seed(93)
+m_glmnet_smote <- f_fit_glmnet()
+
+saveRDS(object = m_glmnet_smote, file = paste(path_Models, "m_glmnet_smote.RDS", sep = "/"))
+rm(m_glmnet_smote)
+Sys.time()
 
 Sys.time()
 stopCluster(cl)
